@@ -2,10 +2,15 @@ import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useIsAdmin } from "@/hooks/useRole";
-import { Shield, Users, FileQuestion, ListChecks, BookOpen } from "lucide-react";
+import { Shield, Users, FileQuestion, ListChecks, BookOpen, Sparkles, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 const Admin = () => {
   const { isAdmin, loading } = useIsAdmin();
@@ -13,6 +18,11 @@ const Admin = () => {
   const [attempts, setAttempts] = useState<any[]>([]);
   const [simulados, setSimulados] = useState<any[]>([]);
   const [questions, setQuestions] = useState<any[]>([]);
+  const [totalQuestions, setTotalQuestions] = useState(0);
+  const [target, setTarget] = useState(3000);
+  const [batch, setBatch] = useState(15);
+  const [running, setRunning] = useState(false);
+  const [insertedRun, setInsertedRun] = useState(0);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -27,8 +37,43 @@ const Admin = () => {
       setAttempts(a.data || []);
       setSimulados(s.data || []);
       setQuestions(q.data || []);
+      const { count } = await supabase.from("questions").select("*", { count: "exact", head: true });
+      setTotalQuestions(count || 0);
     })();
   }, [isAdmin]);
+
+  const refreshTotal = async () => {
+    const { count } = await supabase.from("questions").select("*", { count: "exact", head: true });
+    setTotalQuestions(count || 0);
+  };
+
+  const startBulk = async () => {
+    setRunning(true);
+    setInsertedRun(0);
+    try {
+      while (true) {
+        const { count } = await supabase.from("questions").select("*", { count: "exact", head: true });
+        const current = count || 0;
+        setTotalQuestions(current);
+        if (current >= target) { toast.success(`Meta atingida: ${current} questões.`); break; }
+        const { data, error } = await supabase.functions.invoke("ai-bulk-generate", { body: { batch } });
+        if (error) throw error;
+        if ((data as any)?.error) throw new Error((data as any).error);
+        const ins = (data as any).inserted || 0;
+        setInsertedRun((p) => p + ins);
+        if (ins === 0) { toast.error("Lote sem inserções, parando."); break; }
+        // pequena pausa para não bater rate limit
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Falha na geração em lote");
+    } finally {
+      setRunning(false);
+      refreshTotal();
+    }
+  };
+
+  const stopBulk = () => setRunning(false); // a próxima checagem encerra
 
   if (loading) return <div className="container py-12 text-muted-foreground">Carregando…</div>;
   if (!isAdmin) return <Navigate to="/app" replace />;
@@ -51,8 +96,39 @@ const Admin = () => {
         <StatCard icon={Users} label="Usuários" value={profiles.length} />
         <StatCard icon={ListChecks} label="Tentativas" value={attempts.length} hint={`${totalAcc}% acerto`} />
         <StatCard icon={BookOpen} label="Simulados" value={simulados.length} />
-        <StatCard icon={FileQuestion} label="Questões" value={questions.length} />
+        <StatCard icon={FileQuestion} label="Questões totais" value={totalQuestions} />
       </div>
+
+      <Section title="Geração em massa de questões (IA — não oficial)">
+        <div className="space-y-4">
+          <div className="grid md:grid-cols-3 gap-3">
+            <div>
+              <Label>Meta total no banco</Label>
+              <Input type="number" min={100} max={10000} value={target} onChange={(e) => setTarget(Number(e.target.value))} />
+            </div>
+            <div>
+              <Label>Tamanho do lote</Label>
+              <Input type="number" min={1} max={25} value={batch} onChange={(e) => setBatch(Number(e.target.value))} />
+            </div>
+            <div className="flex items-end gap-2">
+              <Button onClick={startBulk} disabled={running} className="flex-1 bg-gradient-primary text-primary-foreground">
+                {running ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Gerando…</> : <><Sparkles className="h-4 w-4 mr-2" />Iniciar</>}
+              </Button>
+              {running && <Button variant="outline" onClick={stopBulk}>Parar</Button>}
+            </div>
+          </div>
+          <div>
+            <div className="flex justify-between text-xs text-muted-foreground mb-1">
+              <span>Progresso até a meta</span>
+              <span>{totalQuestions} / {target} {running && `(+${insertedRun} nesta sessão)`}</span>
+            </div>
+            <Progress value={Math.min(100, (totalQuestions / target) * 100)} />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Distribui ano × matéria × dificuldade aleatoriamente; ~20% das questões são dissertativas. Todas são salvas com o rótulo <strong>IA — não oficial</strong>.
+          </p>
+        </div>
+      </Section>
 
       <Section title="Usuários cadastrados">
         <Table>
