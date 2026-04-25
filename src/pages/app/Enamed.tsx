@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { QuestionCard, QuestionData } from "@/components/QuestionCard";
+import { CascadeFilter, CascadeValue } from "@/components/CascadeFilter";
 import { Sparkles, Search, Wand2, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,20 +35,36 @@ const STYLE_NOTES: Record<string, string> = {
 };
 
 const Enamed = () => {
+  // Busca por banca (oficiais)
   const [originSearch, setOriginSearch] = useState("enamed");
+  const [searchFilter, setSearchFilter] = useState<CascadeValue>({ year: "geral", discipline: "all", difficulty: "all" });
   const [searchResults, setSearchResults] = useState<QuestionData[]>([]);
+
+  // Geração de inéditas IA
   const [genOrigin, setGenOrigin] = useState("enamed");
-  const [genDiscipline, setGenDiscipline] = useState("");
+  const [genFilter, setGenFilter] = useState<CascadeValue>({ year: "residencia", discipline: "all", difficulty: "medium" });
   const [genCount, setGenCount] = useState(3);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<any[]>([]);
+
+  // Caso clínico → questão
   const [transformOrigin, setTransformOrigin] = useState("enamed");
+  const [transformFilter, setTransformFilter] = useState<CascadeValue>({ year: "residencia", discipline: "all", difficulty: "medium" });
   const [clinicalCase, setClinicalCase] = useState("");
   const [transforming, setTransforming] = useState(false);
   const [transformed, setTransformed] = useState<any | null>(null);
 
   const search = async () => {
-    const { data } = await supabase.from("questions").select("*").eq("origin", originSearch as any).eq("review_status", "approved");
+    let q = supabase
+      .from("questions")
+      .select("*")
+      .eq("origin", originSearch as any)
+      .eq("review_status", "approved")
+      .eq("is_ai_unofficial", false); // banca oficial: nunca trazer IA
+    if (searchFilter.year !== "geral") q = q.eq("course_year", searchFilter.year as any);
+    if (searchFilter.discipline !== "all") q = q.eq("discipline", searchFilter.discipline);
+    if (searchFilter.difficulty !== "all") q = q.eq("difficulty", searchFilter.difficulty as any);
+    const { data } = await q;
     setSearchResults((data || []) as any);
   };
 
@@ -55,12 +72,19 @@ const Enamed = () => {
     setGenerating(true); setGenerated([]);
     try {
       const { data, error } = await supabase.functions.invoke("ai-generate-questions", {
-        body: { mode: "generate", origin: genOrigin, discipline: genDiscipline || undefined, count: genCount },
+        body: {
+          mode: "generate",
+          origin: genOrigin,
+          discipline: genFilter.discipline !== "all" ? genFilter.discipline : undefined,
+          course_year: genFilter.year,
+          difficulty: genFilter.difficulty !== "all" ? genFilter.difficulty : undefined,
+          count: genCount,
+        },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
       setGenerated((data as any).inserted || []);
-      toast.success(`${(data as any).count} questão(ões) gerada(s) e enviadas para revisão.`);
+      toast.success(`${(data as any).count} questão(ões) inédita(s) gerada(s) — marcadas como IA, não oficial.`);
     } catch (e: any) { toast.error(e.message || "Falha ao gerar"); }
     finally { setGenerating(false); }
   };
@@ -70,12 +94,19 @@ const Enamed = () => {
     setTransforming(true); setTransformed(null);
     try {
       const { data, error } = await supabase.functions.invoke("ai-generate-questions", {
-        body: { mode: "transform", origin: transformOrigin, clinicalCase },
+        body: {
+          mode: "transform",
+          origin: transformOrigin,
+          discipline: transformFilter.discipline !== "all" ? transformFilter.discipline : undefined,
+          course_year: transformFilter.year,
+          difficulty: transformFilter.difficulty !== "all" ? transformFilter.difficulty : undefined,
+          clinicalCase,
+        },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
       setTransformed((data as any).inserted?.[0] || null);
-      toast.success("Questão criada e enviada para revisão.");
+      toast.success("Questão criada (IA — não oficial).");
     } catch (e: any) { toast.error(e.message || "Falha"); }
     finally { setTransforming(false); }
   };
@@ -101,16 +132,22 @@ const Enamed = () => {
 
         <TabsContent value="search" className="space-y-4 mt-6">
           <Card className="bg-card-elegant border-border p-6">
-            <Label>Banca / origem</Label>
-            <div className="flex gap-3 mt-2">
-              <Select value={originSearch} onValueChange={setOriginSearch}>
-                <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
-                <SelectContent>{ORIGINS.map(o => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}</SelectContent>
-              </Select>
-              <Button onClick={search} className="bg-gradient-primary text-primary-foreground">Buscar</Button>
-            </div>
-            <div className="mt-4 p-4 rounded-lg border border-primary/30 bg-primary/5 text-sm text-muted-foreground">
-              <span className="text-primary font-semibold">Estilo da banca: </span>{STYLE_NOTES[originSearch]}
+            <div className="space-y-4">
+              <div>
+                <Label>Banca / origem</Label>
+                <Select value={originSearch} onValueChange={setOriginSearch}>
+                  <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+                  <SelectContent>{ORIGINS.map(o => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <CascadeFilter value={searchFilter} onChange={setSearchFilter} />
+              <Button onClick={search} className="w-full bg-gradient-primary text-primary-foreground">Buscar questões oficiais</Button>
+              <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 text-sm text-muted-foreground">
+                <span className="text-primary font-semibold">Estilo da banca: </span>{STYLE_NOTES[originSearch]}
+              </div>
+              <div className="p-4 rounded-lg border border-border bg-secondary/40 text-xs text-muted-foreground">
+                Esta aba mostra somente questões <strong>oficiais importadas</strong>. Enquanto não houver provas importadas para os filtros escolhidos, a lista pode aparecer vazia. Use a aba <em>Gerar inéditas (IA)</em> para questões inspiradas no estilo.
+              </div>
             </div>
           </Card>
           {searchResults.map(q => <QuestionCard key={q.id} q={q} />)}
@@ -118,27 +155,24 @@ const Enamed = () => {
 
         <TabsContent value="generate" className="mt-6">
           <Card className="bg-card-elegant border-border p-6 space-y-4">
-            <div className="grid md:grid-cols-3 gap-3">
-              <div>
-                <Label>Banca-base</Label>
-                <Select value={genOrigin} onValueChange={setGenOrigin}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{ORIGINS.map(o => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Disciplina (opcional)</Label>
-                <Input value={genDiscipline} onChange={e => setGenDiscipline(e.target.value)} placeholder="Ex.: Cardiologia" />
-              </div>
-              <div>
-                <Label>Quantidade</Label>
-                <Input type="number" min={1} max={10} value={genCount} onChange={e => setGenCount(Number(e.target.value))} />
-              </div>
+            <div>
+              <Label>Banca-base (estilo)</Label>
+              <Select value={genOrigin} onValueChange={setGenOrigin}>
+                <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+                <SelectContent>{ORIGINS.map(o => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <CascadeFilter value={genFilter} onChange={setGenFilter} />
+            <div>
+              <Label>Quantidade</Label>
+              <Input type="number" min={1} max={10} value={genCount} onChange={e => setGenCount(Number(e.target.value))} />
             </div>
             <Button onClick={generate} disabled={generating} className="w-full bg-gradient-primary text-primary-foreground shadow-glow">
-              {generating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Gerando…</> : "Gerar questões com IA"}
+              {generating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Gerando…</> : "Gerar inéditas com IA"}
             </Button>
-            <p className="text-xs text-muted-foreground">As questões geradas ficam com status <span className="text-primary">pendente de revisão</span> até serem aprovadas por um professor.</p>
+            <p className="text-xs text-muted-foreground">
+              Estas questões são <strong>inéditas, geradas por IA</strong>, e ficam marcadas como <span className="text-destructive">IA — não oficial</span>. Vão para revisão antes de aparecerem no banco oficial.
+            </p>
           </Card>
           <div className="mt-6 space-y-4">
             {generated.map((g) => (
@@ -155,12 +189,13 @@ const Enamed = () => {
         <TabsContent value="transform" className="mt-6">
           <Card className="bg-card-elegant border-border p-6 space-y-4">
             <div>
-              <Label>Banca alvo</Label>
+              <Label>Banca alvo (estilo)</Label>
               <Select value={transformOrigin} onValueChange={setTransformOrigin}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
                 <SelectContent>{ORIGINS.map(o => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            <CascadeFilter value={transformFilter} onChange={setTransformFilter} />
             <div>
               <Label>Caso clínico</Label>
               <Textarea value={clinicalCase} onChange={e => setClinicalCase(e.target.value)} rows={6}
@@ -170,6 +205,7 @@ const Enamed = () => {
               className="w-full bg-gradient-primary text-primary-foreground shadow-glow">
               {transforming ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Transformando…</> : "Transformar em questão"}
             </Button>
+            <p className="text-xs text-muted-foreground">Resultado fica marcado como <span className="text-destructive">IA — não oficial</span>.</p>
           </Card>
           {transformed && <div className="mt-6"><QuestionCard q={transformed as any} /></div>}
         </TabsContent>
