@@ -13,6 +13,7 @@ import Banco from "./pages/app/Banco.tsx";
 import Simulado from "./pages/app/Simulado.tsx";
 import Enamed from "./pages/app/Enamed.tsx";
 import Desempenho from "./pages/app/Desempenho.tsx";
+import Admin from "./pages/app/Admin.tsx";
 import { AuthProvider } from "./hooks/useAuth";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
               <Route path="simulado" element={<Simulado />} />
               <Route path="enamed" element={<Enamed />} />
               <Route path="desempenho" element={<Desempenho />} />
+              <Route path="admin" element={<Admin />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
