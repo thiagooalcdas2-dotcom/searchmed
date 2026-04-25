@@ -42,6 +42,8 @@ serve(async (req) => {
     const mode: "generate" | "transform" = body.mode || "generate";
     const origin: string = body.origin || "enamed";
     const discipline: string | undefined = body.discipline;
+    const courseYear: string = body.course_year || "residencia";
+    const difficultyIn: string | undefined = body.difficulty;
     const count: number = Math.min(Math.max(Number(body.count) || 3, 1), 10);
     const clinicalCase: string | undefined = body.clinicalCase;
 
@@ -65,20 +67,22 @@ REGRAS RÍGIDAS:
 - Comentário deve explicar o raciocínio clínico e por que cada alternativa errada está errada brevemente.
 - Conteúdo cientificamente correto e atualizado.
 - CONTROLE DE TAMANHO: as alternativas devem ter comprimentos parecidos. NÃO faça a correta significativamente mais longa que as demais. Mantenha paralelismo gramatical.
+- VARIE A POSIÇÃO da alternativa correta (não use sempre a mesma letra).
 - Estilo da banca alvo: ${originLabel}.
 - Idioma: português brasileiro.
 - Responda APENAS JSON válido conforme o schema solicitado, sem markdown.`;
 
+    const difficultyHint = difficultyIn ? `Dificuldade alvo: ${difficultyIn}.` : "";
     let userPrompt = "";
     if (mode === "generate") {
-      userPrompt = `Gere ${count} questão(ões) de múltipla escolha (5 alternativas A-E) inspiradas no estilo da banca ${originLabel}${discipline ? `, na disciplina: ${discipline}` : ""}.
+      userPrompt = `Gere ${count} questão(ões) de múltipla escolha (5 alternativas A-E) inspiradas no estilo da banca ${originLabel}${discipline ? `, na disciplina: ${discipline}` : ""}. ${difficultyHint}
 Use estes exemplos APENAS como referência de estilo e padrão (não copie):
 ${JSON.stringify(baseExamples).slice(0, 4000)}
 
 Responda no formato JSON:
 { "questions": [ { "statement": "...", "alternatives": [{"key":"A","text":"..."},{"key":"B","text":"..."},{"key":"C","text":"..."},{"key":"D","text":"..."},{"key":"E","text":"..."}], "correct_alternative":"B", "explanation":"...", "discipline":"...", "subtopic":"...", "difficulty":"easy|medium|hard", "confidence": 0.0-1.0, "alt_length_balanced": true } ] }`;
     } else {
-      userPrompt = `Transforme o caso clínico abaixo em UMA questão de múltipla escolha (5 alternativas) no estilo da banca ${originLabel}.
+      userPrompt = `Transforme o caso clínico abaixo em UMA questão de múltipla escolha (5 alternativas) no estilo da banca ${originLabel}. ${difficultyHint}
 CASO: """${clinicalCase || ""}"""
 Mesmo formato JSON do schema acima, "questions" como array com 1 item.`;
     }
@@ -135,8 +139,10 @@ Mesmo formato JSON do schema acima, "questions" como array com 1 item.`;
         explanation: q.explanation || "",
         discipline: q.discipline || discipline || "Geral",
         subtopic: q.subtopic || null,
-        difficulty: ["easy", "medium", "hard"].includes(q.difficulty) ? q.difficulty : "medium",
+        difficulty: ["easy", "medium", "hard"].includes(q.difficulty) ? q.difficulty : (difficultyIn && ["easy","medium","hard"].includes(difficultyIn) ? difficultyIn : "medium"),
         origin,
+        course_year: courseYear,
+        is_ai_unofficial: true,
         tags: [],
         review_status: "pending_review",
         ai_generated: true,
