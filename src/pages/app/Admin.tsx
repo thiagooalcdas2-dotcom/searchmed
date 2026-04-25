@@ -10,6 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useIsAdmin } from "@/hooks/useRole";
 import { Shield, Users, FileQuestion, ListChecks, BookOpen, Sparkles, Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ImportExam } from "@/components/admin/ImportExam";
+import { ReviewQueue } from "@/components/admin/ReviewQueue";
 import { toast } from "sonner";
 
 const Admin = () => {
@@ -23,6 +26,7 @@ const Admin = () => {
   const [batch, setBatch] = useState(15);
   const [running, setRunning] = useState(false);
   const [insertedRun, setInsertedRun] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -39,6 +43,8 @@ const Admin = () => {
       setQuestions(q.data || []);
       const { count } = await supabase.from("questions").select("*", { count: "exact", head: true });
       setTotalQuestions(count || 0);
+      const { count: pc } = await supabase.from("questions").select("*", { count: "exact", head: true }).eq("review_status", "pending_review");
+      setPendingCount(pc || 0);
     })();
   }, [isAdmin]);
 
@@ -96,10 +102,30 @@ const Admin = () => {
         <StatCard icon={Users} label="Usuários" value={profiles.length} />
         <StatCard icon={ListChecks} label="Tentativas" value={attempts.length} hint={`${totalAcc}% acerto`} />
         <StatCard icon={BookOpen} label="Simulados" value={simulados.length} />
-        <StatCard icon={FileQuestion} label="Questões totais" value={totalQuestions} />
+        <StatCard icon={FileQuestion} label="Questões totais" value={totalQuestions} hint={`${pendingCount} pendentes`} />
       </div>
 
-      <Section title="Geração em massa de questões (IA — não oficial)">
+      <Tabs defaultValue="import">
+        <TabsList>
+          <TabsTrigger value="import">Importar prova</TabsTrigger>
+          <TabsTrigger value="review">Revisão {pendingCount > 0 && `(${pendingCount})`}</TabsTrigger>
+          <TabsTrigger value="bulk">Geração em massa</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="import" className="mt-4">
+          <ImportExam onImported={async () => {
+            const { count: pc } = await supabase.from("questions").select("*", { count: "exact", head: true }).eq("review_status", "pending_review");
+            setPendingCount(pc || 0);
+          }} />
+        </TabsContent>
+
+        <TabsContent value="review" className="mt-4">
+          <ReviewQueue />
+        </TabsContent>
+
+        <TabsContent value="bulk" className="mt-4">
+        <Card className="p-6">
+        <h2 className="font-display text-2xl mb-4">Geração em massa (IA — não oficial)</h2>
         <div className="space-y-4">
           <div className="grid md:grid-cols-3 gap-3">
             <div>
@@ -128,7 +154,9 @@ const Admin = () => {
             Distribui ano × matéria × dificuldade aleatoriamente; ~20% das questões são dissertativas. Todas são salvas com o rótulo <strong>IA — não oficial</strong>.
           </p>
         </div>
-      </Section>
+        </Card>
+        </TabsContent>
+      </Tabs>
 
       <Section title="Usuários cadastrados">
         <Table>
