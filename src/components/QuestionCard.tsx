@@ -14,6 +14,10 @@ export type QuestionData = {
   subtopic?: string | null;
   difficulty: string;
   origin: string;
+  media_url?: string | null;
+  media_caption?: string | null;
+  is_ai_unofficial?: boolean;
+  course_year?: string;
 };
 
 const ORIGIN_LABEL: Record<string, string> = {
@@ -49,8 +53,17 @@ export const QuestionCard = ({ q, onAnswer, mode = "study" }: {
         {q.subtopic && <Badge variant="outline">{q.subtopic}</Badge>}
         <Badge variant="outline" className="border-gold/40 text-gold">{ORIGIN_LABEL[q.origin] || q.origin}</Badge>
         <Badge variant="outline" className="capitalize">{q.difficulty}</Badge>
+        {q.is_ai_unofficial && (
+          <Badge variant="outline" className="border-destructive/50 text-destructive">IA — não oficial</Badge>
+        )}
       </div>
       <p className="text-base md:text-lg leading-relaxed mb-6 whitespace-pre-line">{q.statement}</p>
+      {q.media_url && (
+        <figure className="mb-6">
+          <img src={q.media_url} alt={q.media_caption || "Mídia da questão"} className="rounded-lg border border-border w-full" />
+          {q.media_caption && <figcaption className="text-xs text-muted-foreground mt-2">{q.media_caption}</figcaption>}
+        </figure>
+      )}
       <div className="space-y-2">
         {q.alternatives.map((a) => {
           const isSelected = selected === a.key;
