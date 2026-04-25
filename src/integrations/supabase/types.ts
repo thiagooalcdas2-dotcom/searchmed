@@ -14,16 +14,267 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          course_period: string | null
+          created_at: string
+          crm: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          course_period?: string | null
+          created_at?: string
+          crm?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          course_period?: string | null
+          created_at?: string
+          crm?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      question_attempts: {
+        Row: {
+          created_at: string
+          id: string
+          is_correct: boolean
+          question_id: string
+          selected_alternative: string
+          simulado_id: string | null
+          time_spent_seconds: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_correct: boolean
+          question_id: string
+          selected_alternative: string
+          simulado_id?: string | null
+          time_spent_seconds?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_correct?: boolean
+          question_id?: string
+          selected_alternative?: string
+          simulado_id?: string | null
+          time_spent_seconds?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_attempts_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_attempts_simulado_id_fkey"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "simulados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      question_marks: {
+        Row: {
+          created_at: string
+          id: string
+          mark: string
+          question_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mark: string
+          question_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mark?: string
+          question_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_marks_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      questions: {
+        Row: {
+          ai_confidence: number | null
+          ai_generated: boolean
+          alternatives: Json
+          correct_alternative: string
+          created_at: string
+          created_by: string | null
+          difficulty: Database["public"]["Enums"]["difficulty"]
+          discipline: string
+          explanation: string
+          id: string
+          origin: Database["public"]["Enums"]["question_origin"]
+          reference_year: number | null
+          review_status: Database["public"]["Enums"]["review_status"]
+          reviewed_by: string | null
+          reviewer_notes: string | null
+          statement: string
+          subtopic: string | null
+          tags: string[] | null
+          type: Database["public"]["Enums"]["question_type"]
+          updated_at: string
+        }
+        Insert: {
+          ai_confidence?: number | null
+          ai_generated?: boolean
+          alternatives: Json
+          correct_alternative: string
+          created_at?: string
+          created_by?: string | null
+          difficulty?: Database["public"]["Enums"]["difficulty"]
+          discipline: string
+          explanation: string
+          id?: string
+          origin?: Database["public"]["Enums"]["question_origin"]
+          reference_year?: number | null
+          review_status?: Database["public"]["Enums"]["review_status"]
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
+          statement: string
+          subtopic?: string | null
+          tags?: string[] | null
+          type?: Database["public"]["Enums"]["question_type"]
+          updated_at?: string
+        }
+        Update: {
+          ai_confidence?: number | null
+          ai_generated?: boolean
+          alternatives?: Json
+          correct_alternative?: string
+          created_at?: string
+          created_by?: string | null
+          difficulty?: Database["public"]["Enums"]["difficulty"]
+          discipline?: string
+          explanation?: string
+          id?: string
+          origin?: Database["public"]["Enums"]["question_origin"]
+          reference_year?: number | null
+          review_status?: Database["public"]["Enums"]["review_status"]
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
+          statement?: string
+          subtopic?: string | null
+          tags?: string[] | null
+          type?: Database["public"]["Enums"]["question_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      simulados: {
+        Row: {
+          config: Json
+          correct_count: number | null
+          finished_at: string | null
+          id: string
+          question_ids: string[]
+          score: number | null
+          started_at: string
+          title: string
+          total_questions: number
+          user_id: string
+        }
+        Insert: {
+          config?: Json
+          correct_count?: number | null
+          finished_at?: string | null
+          id?: string
+          question_ids: string[]
+          score?: number | null
+          started_at?: string
+          title: string
+          total_questions: number
+          user_id: string
+        }
+        Update: {
+          config?: Json
+          correct_count?: number | null
+          finished_at?: string | null
+          id?: string
+          question_ids?: string[]
+          score?: number | null
+          started_at?: string
+          title?: string
+          total_questions?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "professor" | "student"
+      difficulty: "easy" | "medium" | "hard"
+      question_origin:
+        | "internal"
+        | "enamed"
+        | "residencia_itajuba"
+        | "residencia_alfenas"
+        | "residencia_pouso_alegre"
+        | "residencia_lavras"
+        | "residencia_sp_usp"
+        | "residencia_sp_santa_casa"
+        | "residencia_sp_outros"
+      question_type: "multiple_choice" | "clinical_case" | "true_false"
+      review_status: "approved" | "pending_review" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +401,22 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "professor", "student"],
+      difficulty: ["easy", "medium", "hard"],
+      question_origin: [
+        "internal",
+        "enamed",
+        "residencia_itajuba",
+        "residencia_alfenas",
+        "residencia_pouso_alegre",
+        "residencia_lavras",
+        "residencia_sp_usp",
+        "residencia_sp_santa_casa",
+        "residencia_sp_outros",
+      ],
+      question_type: ["multiple_choice", "clinical_case", "true_false"],
+      review_status: ["approved", "pending_review", "rejected"],
+    },
   },
 } as const
