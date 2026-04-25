@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      discipline_years: {
+        Row: {
+          course_year: Database["public"]["Enums"]["course_year"]
+          discipline_id: string
+          id: string
+        }
+        Insert: {
+          course_year: Database["public"]["Enums"]["course_year"]
+          discipline_id: string
+          id?: string
+        }
+        Update: {
+          course_year?: Database["public"]["Enums"]["course_year"]
+          discipline_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discipline_years_discipline_id_fkey"
+            columns: ["discipline_id"]
+            isOneToOne: false
+            referencedRelation: "disciplines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      disciplines: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           course_period: string | null
@@ -127,13 +174,20 @@ export type Database = {
           ai_generated: boolean
           alternatives: Json
           correct_alternative: string
+          course_year: Database["public"]["Enums"]["course_year"]
           created_at: string
           created_by: string | null
           difficulty: Database["public"]["Enums"]["difficulty"]
           discipline: string
+          exam_board: Database["public"]["Enums"]["exam_board"]
+          expected_answer: string | null
           explanation: string
           id: string
+          is_ai_unofficial: boolean
+          media_caption: string | null
+          media_url: string | null
           origin: Database["public"]["Enums"]["question_origin"]
+          question_format: Database["public"]["Enums"]["question_format"]
           reference_year: number | null
           review_status: Database["public"]["Enums"]["review_status"]
           reviewed_by: string | null
@@ -149,13 +203,20 @@ export type Database = {
           ai_generated?: boolean
           alternatives: Json
           correct_alternative: string
+          course_year?: Database["public"]["Enums"]["course_year"]
           created_at?: string
           created_by?: string | null
           difficulty?: Database["public"]["Enums"]["difficulty"]
           discipline: string
+          exam_board?: Database["public"]["Enums"]["exam_board"]
+          expected_answer?: string | null
           explanation: string
           id?: string
+          is_ai_unofficial?: boolean
+          media_caption?: string | null
+          media_url?: string | null
           origin?: Database["public"]["Enums"]["question_origin"]
+          question_format?: Database["public"]["Enums"]["question_format"]
           reference_year?: number | null
           review_status?: Database["public"]["Enums"]["review_status"]
           reviewed_by?: string | null
@@ -171,13 +232,20 @@ export type Database = {
           ai_generated?: boolean
           alternatives?: Json
           correct_alternative?: string
+          course_year?: Database["public"]["Enums"]["course_year"]
           created_at?: string
           created_by?: string | null
           difficulty?: Database["public"]["Enums"]["difficulty"]
           discipline?: string
+          exam_board?: Database["public"]["Enums"]["exam_board"]
+          expected_answer?: string | null
           explanation?: string
           id?: string
+          is_ai_unofficial?: boolean
+          media_caption?: string | null
+          media_url?: string | null
           origin?: Database["public"]["Enums"]["question_origin"]
+          question_format?: Database["public"]["Enums"]["question_format"]
           reference_year?: number | null
           review_status?: Database["public"]["Enums"]["review_status"]
           reviewed_by?: string | null
@@ -262,7 +330,28 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "professor" | "student"
+      course_year:
+        | "ano_1"
+        | "ano_2"
+        | "ano_3"
+        | "ano_4"
+        | "ano_5"
+        | "ano_6"
+        | "residencia"
+        | "geral"
       difficulty: "easy" | "medium" | "hard"
+      exam_board:
+        | "none"
+        | "sp_usp"
+        | "sp_unifesp"
+        | "sp_santa_casa"
+        | "sp_outros"
+        | "mg_itajuba"
+        | "mg_alfenas"
+        | "mg_pouso_alegre"
+        | "mg_lavras"
+        | "enamed"
+      question_format: "multiple_choice" | "open_ended"
       question_origin:
         | "internal"
         | "enamed"
@@ -403,7 +492,30 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "professor", "student"],
+      course_year: [
+        "ano_1",
+        "ano_2",
+        "ano_3",
+        "ano_4",
+        "ano_5",
+        "ano_6",
+        "residencia",
+        "geral",
+      ],
       difficulty: ["easy", "medium", "hard"],
+      exam_board: [
+        "none",
+        "sp_usp",
+        "sp_unifesp",
+        "sp_santa_casa",
+        "sp_outros",
+        "mg_itajuba",
+        "mg_alfenas",
+        "mg_pouso_alegre",
+        "mg_lavras",
+        "enamed",
+      ],
+      question_format: ["multiple_choice", "open_ended"],
       question_origin: [
         "internal",
         "enamed",
