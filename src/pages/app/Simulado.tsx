@@ -4,22 +4,24 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { QuestionCard, QuestionData } from "@/components/QuestionCard";
+import { CascadeFilter, CascadeValue } from "@/components/CascadeFilter";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 const Simulado = () => {
   const { user } = useAuth();
   const [count, setCount] = useState(5);
-  const [origin, setOrigin] = useState("all");
+  const [filter, setFilter] = useState<CascadeValue>({ year: "geral", discipline: "all", difficulty: "all" });
   const [questions, setQuestions] = useState<QuestionData[]>([]);
   const [answers, setAnswers] = useState<Record<string, boolean>>({});
   const [done, setDone] = useState(false);
 
   const start = async () => {
     let q = supabase.from("questions").select("*").eq("review_status", "approved");
-    if (origin !== "all") q = q.eq("origin", origin as any);
+    if (filter.year !== "geral") q = q.eq("course_year", filter.year as any);
+    if (filter.discipline !== "all") q = q.eq("discipline", filter.discipline);
+    if (filter.difficulty !== "all") q = q.eq("difficulty", filter.difficulty as any);
     const { data } = await q;
     if (!data || data.length === 0) { toast.error("Sem questões para esse filtro."); return; }
     const shuffled = [...data].sort(() => Math.random() - 0.5).slice(0, count);
@@ -54,28 +56,12 @@ const Simulado = () => {
     return (
       <div className="container max-w-2xl py-12">
         <h1 className="font-display text-4xl mb-2">Montar simulado</h1>
-        <p className="text-muted-foreground mb-8">Configure e gere um simulado aleatório.</p>
+        <p className="text-muted-foreground mb-8">Escolha ano → matéria → dificuldade.</p>
         <Card className="bg-card-elegant border-border p-6 space-y-4">
+          <CascadeFilter value={filter} onChange={setFilter} />
           <div>
             <Label>Número de questões</Label>
             <Input type="number" min={1} max={100} value={count} onChange={e => setCount(Number(e.target.value))} />
-          </div>
-          <div>
-            <Label>Origem</Label>
-            <Select value={origin} onValueChange={setOrigin}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Misto (todas as origens)</SelectItem>
-                <SelectItem value="enamed">ENAMED</SelectItem>
-                <SelectItem value="internal">Banco interno</SelectItem>
-                <SelectItem value="residencia_itajuba">Itajubá</SelectItem>
-                <SelectItem value="residencia_alfenas">Alfenas</SelectItem>
-                <SelectItem value="residencia_pouso_alegre">Pouso Alegre</SelectItem>
-                <SelectItem value="residencia_lavras">Lavras</SelectItem>
-                <SelectItem value="residencia_sp_usp">SP · USP</SelectItem>
-                <SelectItem value="residencia_sp_santa_casa">SP · Santa Casa</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
           <Button onClick={start} className="w-full bg-gradient-primary text-primary-foreground shadow-glow">Iniciar</Button>
         </Card>
