@@ -98,4 +98,4 @@
   .shadow-soft { box-shadow: var(--shadow-soft); }
   .text-gradient { background: var(--gradient-primary); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .ring-glow { box-shadow: 0 0 0 1px hsl(var(--primary) / 0.3), 0 0 30px hsl(var(--primary) / 0.25); }
-  }
+}
