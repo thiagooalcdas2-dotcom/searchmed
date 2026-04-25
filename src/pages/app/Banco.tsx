@@ -1,53 +1,30 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { QuestionCard, QuestionData } from "@/components/QuestionCard";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
+import { CascadeFilter, CascadeValue } from "@/components/CascadeFilter";
 import { toast } from "sonner";
-
-const ORIGINS = [
-  { v: "all", l: "Todas as origens" },
-  { v: "internal", l: "Banco interno" },
-  { v: "enamed", l: "ENAMED" },
-  { v: "residencia_itajuba", l: "Residência Itajubá" },
-  { v: "residencia_alfenas", l: "Residência Alfenas" },
-  { v: "residencia_pouso_alegre", l: "Residência Pouso Alegre" },
-  { v: "residencia_lavras", l: "Residência Lavras" },
-  { v: "residencia_sp_usp", l: "SP · USP" },
-  { v: "residencia_sp_santa_casa", l: "SP · Santa Casa" },
-  { v: "residencia_sp_outros", l: "SP · Outros" },
-];
-const DIFFS = [{ v: "all", l: "Todas dificuldades" }, { v: "easy", l: "Fácil" }, { v: "medium", l: "Médio" }, { v: "hard", l: "Difícil" }];
 
 const Banco = () => {
   const { user } = useAuth();
   const [questions, setQuestions] = useState<QuestionData[]>([]);
-  const [origin, setOrigin] = useState("all");
-  const [difficulty, setDifficulty] = useState("all");
-  const [discipline, setDiscipline] = useState("all");
-  const [disciplines, setDisciplines] = useState<string[]>([]);
+  const [filter, setFilter] = useState<CascadeValue>({ year: "geral", discipline: "all", difficulty: "all" });
   const [index, setIndex] = useState(0);
 
   const load = async () => {
     let q = supabase.from("questions").select("*").eq("review_status", "approved").limit(50);
-    if (origin !== "all") q = q.eq("origin", origin as any);
-    if (difficulty !== "all") q = q.eq("difficulty", difficulty as any);
-    if (discipline !== "all") q = q.eq("discipline", discipline);
+    if (filter.year !== "geral") q = q.eq("course_year", filter.year as any);
+    if (filter.difficulty !== "all") q = q.eq("difficulty", filter.difficulty as any);
+    if (filter.discipline !== "all") q = q.eq("discipline", filter.discipline);
     const { data, error } = await q;
     if (error) { toast.error(error.message); return; }
     setQuestions((data || []) as any);
     setIndex(0);
   };
 
-  useEffect(() => {
-    supabase.from("questions").select("discipline").eq("review_status", "approved").then(({ data }) => {
-      const ds = Array.from(new Set((data || []).map((d: any) => d.discipline))).sort();
-      setDisciplines(ds);
-    });
-  }, []);
-
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [origin, difficulty, discipline]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [filter.year, filter.discipline, filter.difficulty]);
 
   const current = questions[index];
 
@@ -61,25 +38,11 @@ const Banco = () => {
   return (
     <div className="container max-w-4xl py-12">
       <h1 className="font-display text-4xl mb-2">Banco de Questões</h1>
-      <p className="text-muted-foreground mb-8">Filtre, responda e veja o comentário imediatamente.</p>
+      <p className="text-muted-foreground mb-8">Selecione ano, matéria e dificuldade para começar.</p>
 
-      <div className="grid md:grid-cols-3 gap-3 mb-6">
-        <Select value={origin} onValueChange={setOrigin}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>{ORIGINS.map(o => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}</SelectContent>
-        </Select>
-        <Select value={discipline} onValueChange={setDiscipline}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as disciplinas</SelectItem>
-            {disciplines.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={difficulty} onValueChange={setDifficulty}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>{DIFFS.map(o => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}</SelectContent>
-        </Select>
-      </div>
+      <Card className="bg-card-elegant border-border p-6 mb-6">
+        <CascadeFilter value={filter} onChange={setFilter} />
+      </Card>
 
       {current ? (
         <>
