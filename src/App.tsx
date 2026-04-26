@@ -14,6 +14,7 @@ import Simulado from "./pages/app/Simulado.tsx";
 import Enamed from "./pages/app/Enamed.tsx";
 import Desempenho from "./pages/app/Desempenho.tsx";
 import Admin from "./pages/app/Admin.tsx";
+import Revisar from "./pages/app/Revisar.tsx";
 import { AuthProvider } from "./hooks/useAuth";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
               <Route path="simulado" element={<Simulado />} />
               <Route path="enamed" element={<Enamed />} />
               <Route path="desempenho" element={<Desempenho />} />
+              <Route path="revisar" element={<Revisar />} />
               <Route path="admin" element={<Admin />} />
             </Route>
             <Route path="*" element={<NotFound />} />

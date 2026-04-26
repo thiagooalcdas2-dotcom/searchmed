@@ -2,13 +2,14 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsAdmin } from "@/hooks/useRole";
 import { Button } from "@/components/ui/button";
-import { Stethoscope, BookOpen, Brain, BarChart3, Library, LogOut, Sparkles, Shield } from "lucide-react";
+import { Stethoscope, BookOpen, Brain, BarChart3, Library, LogOut, Sparkles, Shield, Repeat } from "lucide-react";
 
 const navItems = [
   { to: "/app", label: "Início", icon: Stethoscope, end: true },
   { to: "/app/banco", label: "Banco de Questões", icon: Library },
   { to: "/app/simulado", label: "Simulados", icon: BookOpen },
   { to: "/app/enamed", label: "ENAMED & Residência", icon: Sparkles },
+  { to: "/app/revisar", label: "Caderno de erros", icon: Repeat },
   { to: "/app/desempenho", label: "Meu Desempenho", icon: BarChart3 },
 ];
 
