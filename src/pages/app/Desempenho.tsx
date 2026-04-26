@@ -1,28 +1,51 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Medal } from "lucide-react";
+import { Trophy, Medal, TrendingUp, Flame, Calendar, ChevronRight } from "lucide-react";
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area,
+} from "recharts";
 
 type DiscStat = { name: string; correct: number; total: number };
 type RankRow = { user_id: string; name: string; total: number; correct: number; pct: number };
+type DailyPoint = { date: string; label: string; total: number; correct: number; pct: number };
+type HeatCell = { discipline: string; easy: { c: number; t: number }; medium: { c: number; t: number }; hard: { c: number; t: number } };
+type SimRow = { id: string; title: string; total_questions: number; correct_count: number | null; score: number | null; finished_at: string | null; started_at: string };
+
+const DIFF_LABEL: Record<string, string> = { easy: "Fácil", medium: "Médio", hard: "Difícil" };
+
+function pctColor(pct: number) {
+  if (pct >= 80) return "bg-success/80";
+  if (pct >= 60) return "bg-primary/80";
+  if (pct >= 40) return "bg-gold/80";
+  if (pct > 0) return "bg-destructive/70";
+  return "bg-secondary";
+}
 
 const Desempenho = () => {
   const { user } = useAuth();
   const [byDiscipline, setByDiscipline] = useState<DiscStat[]>([]);
   const [overall, setOverall] = useState({ total: 0, correct: 0 });
   const [ranking, setRanking] = useState<RankRow[]>([]);
+  const [daily, setDaily] = useState<DailyPoint[]>([]);
+  const [heat, setHeat] = useState<HeatCell[]>([]);
+  const [streak, setStreak] = useState(0);
+  const [sims, setSims] = useState<SimRow[]>([]);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      // Pessoal: por disciplina
       const { data } = await supabase
         .from("question_attempts")
-        .select("is_correct, questions(discipline)")
-        .eq("user_id", user.id);
+        .select("is_correct, created_at, questions(discipline, difficulty)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
       const att = (data || []) as any[];
+
+      // Por disciplina
       const map = new Map<string, { c: number; t: number }>();
       let c = 0;
       att.forEach(a => {
@@ -34,8 +57,63 @@ const Desempenho = () => {
       setOverall({ total: att.length, correct: c });
       setByDiscipline([...map.entries()].map(([name, v]) => ({ name, correct: v.c, total: v.t })).sort((a, b) => b.total - a.total));
 
-      // Ranking global (todos podem ler suas próprias tentativas, então cada cliente só verá si mesmo + admins veem todos).
-      // Para um ranking real, idealmente uma view pública ou edge function. Por ora: agrega o que dá pra ler.
+      // Evolução diária (últimos 30 dias)
+      const days = 30;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const buckets = new Map<string, { t: number; c: number }>();
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(today); d.setDate(today.getDate() - i);
+        buckets.set(d.toISOString().slice(0, 10), { t: 0, c: 0 });
+      }
+      att.forEach(a => {
+        const k = new Date(a.created_at).toISOString().slice(0, 10);
+        if (buckets.has(k)) {
+          const e = buckets.get(k)!;
+          e.t += 1; if (a.is_correct) e.c += 1;
+        }
+      });
+      const dailyArr: DailyPoint[] = [...buckets.entries()].map(([date, v]) => {
+        const d = new Date(date);
+        return {
+          date,
+          label: `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`,
+          total: v.t,
+          correct: v.c,
+          pct: v.t ? Math.round((v.c / v.t) * 100) : 0,
+        };
+      });
+      setDaily(dailyArr);
+
+      // Streak (dias consecutivos com >=1 atividade até hoje)
+      let s = 0;
+      for (let i = dailyArr.length - 1; i >= 0; i--) {
+        if (dailyArr[i].total > 0) s++; else break;
+      }
+      setStreak(s);
+
+      // Heatmap matéria × dificuldade
+      const heatMap = new Map<string, HeatCell>();
+      att.forEach(a => {
+        const disc = a.questions?.discipline || "Outros";
+        const diff = (a.questions?.difficulty || "medium") as "easy" | "medium" | "hard";
+        if (!heatMap.has(disc)) heatMap.set(disc, { discipline: disc, easy: { c: 0, t: 0 }, medium: { c: 0, t: 0 }, hard: { c: 0, t: 0 } });
+        const cell = heatMap.get(disc)!;
+        cell[diff].t += 1; if (a.is_correct) cell[diff].c += 1;
+      });
+      setHeat([...heatMap.values()].sort((a, b) =>
+        (b.easy.t + b.medium.t + b.hard.t) - (a.easy.t + a.medium.t + a.hard.t)
+      ));
+
+      // Simulados
+      const { data: simData } = await supabase
+        .from("simulados")
+        .select("id, title, total_questions, correct_count, score, finished_at, started_at")
+        .eq("user_id", user.id)
+        .order("started_at", { ascending: false })
+        .limit(20);
+      setSims((simData || []) as SimRow[]);
+
+      // Ranking
       const { data: allAtt } = await supabase
         .from("question_attempts")
         .select("user_id, is_correct");
@@ -62,29 +140,134 @@ const Desempenho = () => {
     })();
   }, [user]);
 
+  const last7 = useMemo(() => daily.slice(-7), [daily]);
+  const last7Total = last7.reduce((s, d) => s + d.total, 0);
+
   return (
-    <div className="container max-w-4xl py-12">
+    <div className="container max-w-5xl py-12">
       <h1 className="font-display text-4xl mb-2">Meu Desempenho</h1>
       <p className="text-muted-foreground mb-8">Onde você acerta, onde precisa estudar — e como está no ranking.</p>
 
-      <div className="grid md:grid-cols-2 gap-4 mb-8">
-        <Card className="bg-card-elegant border-border p-6">
+      <div className="grid md:grid-cols-4 gap-4 mb-8">
+        <Card className="bg-card-elegant border-border p-5">
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Total respondido</div>
-          <div className="font-display text-4xl mt-2">{overall.total}</div>
+          <div className="font-display text-3xl mt-2">{overall.total}</div>
         </Card>
-        <Card className="bg-card-elegant border-border p-6">
+        <Card className="bg-card-elegant border-border p-5">
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Aproveitamento</div>
-          <div className="font-display text-4xl mt-2 text-gradient">
+          <div className="font-display text-3xl mt-2 text-gradient">
             {overall.total ? Math.round((overall.correct / overall.total) * 100) : 0}%
           </div>
         </Card>
+        <Card className="bg-card-elegant border-border p-5">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Flame className="h-3 w-3" /> Streak</div>
+          <div className="font-display text-3xl mt-2">{streak}<span className="text-base text-muted-foreground ml-1">dias</span></div>
+        </Card>
+        <Card className="bg-card-elegant border-border p-5">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">Últimos 7 dias</div>
+          <div className="font-display text-3xl mt-2">{last7Total}<span className="text-base text-muted-foreground ml-1">questões</span></div>
+        </Card>
       </div>
 
-      <Tabs defaultValue="materias">
+      <Tabs defaultValue="evolucao">
         <TabsList className="bg-secondary">
+          <TabsTrigger value="evolucao"><TrendingUp className="h-4 w-4 mr-2" />Evolução</TabsTrigger>
+          <TabsTrigger value="heatmap">Heatmap</TabsTrigger>
           <TabsTrigger value="materias">Por matéria</TabsTrigger>
+          <TabsTrigger value="simulados"><Calendar className="h-4 w-4 mr-2" />Simulados</TabsTrigger>
           <TabsTrigger value="ranking"><Trophy className="h-4 w-4 mr-2" />Ranking</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="evolucao" className="mt-4 space-y-4">
+          <Card className="bg-card-elegant border-border p-6">
+            <div className="font-display text-lg mb-4">Aproveitamento diário (30 dias)</div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={daily}>
+                  <defs>
+                    <linearGradient id="pctG" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.5} />
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} domain={[0, 100]} unit="%" />
+                  <Tooltip
+                    contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                    formatter={(v: any, n: string) => n === "pct" ? [`${v}%`, "Acerto"] : [v, n]}
+                  />
+                  <Area type="monotone" dataKey="pct" stroke="hsl(var(--primary))" fill="url(#pctG)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+          <Card className="bg-card-elegant border-border p-6">
+            <div className="font-display text-lg mb-4">Volume diário</div>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={daily}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                  <Line type="monotone" dataKey="total" stroke="hsl(var(--gold))" strokeWidth={2} dot={false} name="Respondidas" />
+                  <Line type="monotone" dataKey="correct" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} name="Acertos" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="heatmap" className="mt-4">
+          <Card className="bg-card-elegant border-border p-6 overflow-x-auto">
+            <div className="font-display text-lg mb-4">Matéria × Dificuldade</div>
+            {heat.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sem dados ainda.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs uppercase tracking-wider text-muted-foreground">
+                    <th className="text-left py-2 pr-4">Matéria</th>
+                    {(["easy", "medium", "hard"] as const).map(d => (
+                      <th key={d} className="text-center px-2">{DIFF_LABEL[d]}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {heat.map(row => (
+                    <tr key={row.discipline} className="border-t border-border">
+                      <td className="py-2 pr-4 font-medium">{row.discipline}</td>
+                      {(["easy", "medium", "hard"] as const).map(d => {
+                        const cell = row[d];
+                        const pct = cell.t ? Math.round((cell.c / cell.t) * 100) : 0;
+                        return (
+                          <td key={d} className="px-2 py-1.5">
+                            <div className={`rounded-md px-3 py-2 text-center ${pctColor(cell.t ? pct : -1)} ${cell.t === 0 ? "text-muted-foreground" : "text-foreground"}`}>
+                              {cell.t === 0 ? "—" : (
+                                <>
+                                  <div className="font-display text-base">{pct}%</div>
+                                  <div className="text-[10px] opacity-80">{cell.c}/{cell.t}</div>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <div className="flex gap-3 mt-4 text-xs text-muted-foreground items-center">
+              <span>Legenda:</span>
+              <span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-destructive/70" /> &lt;40%</span>
+              <span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-gold/80" /> 40-59%</span>
+              <span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-primary/80" /> 60-79%</span>
+              <span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-success/80" /> ≥80%</span>
+            </div>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="materias" className="mt-4">
           <Card className="bg-card-elegant border-border p-6">
@@ -105,6 +288,38 @@ const Desempenho = () => {
                 );
               })}
             </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="simulados" className="mt-4">
+          <Card className="bg-card-elegant border-border p-6">
+            {sims.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Você ainda não fez nenhum simulado. <Link to="/app/simulado" className="text-primary underline">Começar agora</Link>.</p>
+            ) : (
+              <ul className="space-y-2">
+                {sims.map(s => {
+                  const done = !!s.finished_at;
+                  const pct = s.score != null ? Math.round(Number(s.score)) : (s.correct_count != null ? Math.round((s.correct_count / s.total_questions) * 100) : null);
+                  const date = new Date(s.finished_at || s.started_at);
+                  return (
+                    <li key={s.id} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-secondary/40 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{s.title}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {date.toLocaleDateString("pt-BR")} · {s.total_questions} questões {done ? "" : "· em andamento"}
+                        </div>
+                      </div>
+                      {pct != null ? (
+                        <span className="font-display text-xl text-gradient w-16 text-right">{pct}%</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </Card>
         </TabsContent>
 
@@ -130,9 +345,6 @@ const Desempenho = () => {
                 })}
               </ul>
             )}
-            <p className="text-xs text-muted-foreground mt-4">
-              O ranking exibe quem você consegue ver com base nas permissões. Para o ranking global completo, peça ao administrador para liberar a visualização agregada.
-            </p>
           </Card>
         </TabsContent>
       </Tabs>
