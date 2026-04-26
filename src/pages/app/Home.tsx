@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, Sparkles, Library, BookOpen, TrendingUp } from "lucide-react";
+import { ArrowRight, Sparkles, Library, BookOpen, TrendingUp, Repeat } from "lucide-react";
 
 const modules = [
   { to: "/app/simulado", icon: BookOpen, title: "Simulados", body: "Monte simulados por ano, matéria e dificuldade." },
   { to: "/app/banco", icon: Library, title: "Banco de questões", body: "Explore as questões filtradas em cascata." },
   { to: "/app/enamed", icon: Sparkles, title: "ENAMED & Residência", body: "Provas oficiais, IA inéditas e casos clínicos." },
+  { to: "/app/revisar", icon: Repeat, title: "Caderno de erros", body: "Revisão espaçada das questões que você errou." },
   { to: "/app/desempenho", icon: TrendingUp, title: "Meu desempenho", body: "Estatísticas, ranking e evolução por matéria." },
 ];
 
