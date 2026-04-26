@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { CascadeFilter, CascadeValue } from "@/components/CascadeFilter";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { enqueueManyWrong } from "@/lib/reviewQueue";
 import { Clock, ChevronLeft, ChevronRight, Flag, Check, X, AlertTriangle, RotateCcw } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -147,6 +148,16 @@ const Simulado = () => {
         score: total ? Math.round((correct / total) * 100) : 0,
         finished_at: new Date().toISOString(),
       }).eq("id", simuladoId);
+    }
+    // Enfileira erradas no caderno de revisão
+    if (user) {
+      const wrongIds = questions
+        .filter((q) => q.question_format !== "open_ended" && answers[q.id] && answers[q.id] !== q.correct_alternative)
+        .map((q) => q.id);
+      const blankIds = questions
+        .filter((q) => q.question_format !== "open_ended" && !answers[q.id])
+        .map((q) => q.id);
+      await enqueueManyWrong(user.id, [...wrongIds, ...blankIds], "simulado_wrong");
     }
     setStage("finished");
     if (auto) toast.warning("Tempo esgotado — simulado encerrado.");

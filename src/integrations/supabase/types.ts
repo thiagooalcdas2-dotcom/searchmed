@@ -258,6 +258,59 @@ export type Database = {
         }
         Relationships: []
       }
+      review_cards: {
+        Row: {
+          created_at: string
+          due_at: string
+          ease: number
+          id: string
+          interval_days: number
+          last_grade: number | null
+          last_reviewed_at: string | null
+          question_id: string
+          repetitions: number
+          source: Database["public"]["Enums"]["review_source"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          due_at?: string
+          ease?: number
+          id?: string
+          interval_days?: number
+          last_grade?: number | null
+          last_reviewed_at?: string | null
+          question_id: string
+          repetitions?: number
+          source?: Database["public"]["Enums"]["review_source"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          due_at?: string
+          ease?: number
+          id?: string
+          interval_days?: number
+          last_grade?: number | null
+          last_reviewed_at?: string | null
+          question_id?: string
+          repetitions?: number
+          source?: Database["public"]["Enums"]["review_source"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_cards_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       simulados: {
         Row: {
           config: Json
@@ -363,6 +416,7 @@ export type Database = {
         | "residencia_sp_santa_casa"
         | "residencia_sp_outros"
       question_type: "multiple_choice" | "clinical_case" | "true_false"
+      review_source: "wrong_answer" | "manual_mark" | "simulado_wrong"
       review_status: "approved" | "pending_review" | "rejected"
     }
     CompositeTypes: {
@@ -528,6 +582,7 @@ export const Constants = {
         "residencia_sp_outros",
       ],
       question_type: ["multiple_choice", "clinical_case", "true_false"],
+      review_source: ["wrong_answer", "manual_mark", "simulado_wrong"],
       review_status: ["approved", "pending_review", "rejected"],
     },
   },

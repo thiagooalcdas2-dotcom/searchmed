@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { CascadeFilter, CascadeValue } from "@/components/CascadeFilter";
 import { toast } from "sonner";
+import { enqueueReviewCard } from "@/lib/reviewQueue";
 
 const Banco = () => {
   const { user } = useAuth();
@@ -33,6 +34,9 @@ const Banco = () => {
     await supabase.from("question_attempts").insert({
       user_id: user.id, question_id: current.id, selected_alternative: selected, is_correct: correct,
     });
+    if (!correct) {
+      await enqueueReviewCard(user.id, current.id, "wrong_answer");
+    }
   };
 
   return (
