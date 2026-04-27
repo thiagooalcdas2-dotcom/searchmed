@@ -282,15 +282,49 @@ export const SessionsPanel = () => {
                         : <Badge>ativa</Badge>}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="outline" size="sm" onClick={() => revokeAllForUser(s.user_id)}>
-                        Encerrar todas
-                      </Button>
+                      {isAdminUser(s.user_id) ? (
+                        <span className="text-xs text-muted-foreground">protegido</span>
+                      ) : (
+                        <Button variant="outline" size="sm" onClick={() => revokeAllForUser(s.user_id)}>
+                          Encerrar todas
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
+        </TabsContent>
+
+        <TabsContent value="create" className="mt-4">
+          <Card className="p-6 max-w-xl">
+            <div className="flex items-center gap-2 mb-4">
+              <UserPlus className="h-5 w-5 text-primary" />
+              <h3 className="font-display text-xl">Adicionar conta</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Crie acessos para alunos. As contas criadas aqui já entram <strong>confirmadas</strong> e
+              recebem perfil <strong>básico</strong> (sem acesso ao painel admin).
+            </p>
+            <div className="space-y-3">
+              <div>
+                <Label>Nome completo (opcional)</Label>
+                <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="João Silva" maxLength={120} />
+              </div>
+              <div>
+                <Label>E-mail (login)</Label>
+                <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="joao12@gmail.com" maxLength={255} />
+              </div>
+              <div>
+                <Label>Senha</Label>
+                <Input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="mínimo 6 caracteres" maxLength={128} />
+              </div>
+              <Button onClick={createUser} disabled={creating} className="bg-gradient-primary text-primary-foreground">
+                {creating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Criando…</> : <><UserPlus className="h-4 w-4 mr-2" />Criar conta</>}
+              </Button>
+            </div>
+          </Card>
         </TabsContent>
       </Tabs>
     </Card>
