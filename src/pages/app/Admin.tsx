@@ -112,6 +112,7 @@ const Admin = () => {
           <TabsTrigger value="review">Revisão {pendingCount > 0 && `(${pendingCount})`}</TabsTrigger>
           <TabsTrigger value="bulk">Geração em massa</TabsTrigger>
           <TabsTrigger value="sessions">Sessões & Acessos</TabsTrigger>
+          <TabsTrigger value="activity">Atividade</TabsTrigger>
         </TabsList>
 
         <TabsContent value="import" className="mt-4">
@@ -162,6 +163,66 @@ const Admin = () => {
         <TabsContent value="sessions" className="mt-4">
           <SessionsPanel />
         </TabsContent>
+
+        <TabsContent value="activity" className="mt-4 space-y-6">
+          <Section title="Simulados realizados">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Título</TableHead>
+                  <TableHead>Usuário</TableHead>
+                  <TableHead>Questões</TableHead>
+                  <TableHead>Acertos</TableHead>
+                  <TableHead>Score</TableHead>
+                  <TableHead>Quando</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {simulados.map(s => {
+                  const u = profiles.find(p => p.id === s.user_id);
+                  return (
+                    <TableRow key={s.id}>
+                      <TableCell className="font-medium">{s.title}</TableCell>
+                      <TableCell>{u?.full_name || s.user_id.slice(0, 8)}</TableCell>
+                      <TableCell>{s.total_questions}</TableCell>
+                      <TableCell>{s.correct_count ?? "—"}</TableCell>
+                      <TableCell>{s.score != null ? `${s.score}%` : <Badge variant="secondary">em curso</Badge>}</TableCell>
+                      <TableCell className="text-muted-foreground">{new Date(s.started_at).toLocaleString("pt-BR")}</TableCell>
+                    </TableRow>
+                  );
+                })}
+                {simulados.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum simulado ainda</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </Section>
+
+          <Section title="Tentativas recentes (últimas 200)">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Usuário</TableHead>
+                  <TableHead>Alternativa</TableHead>
+                  <TableHead>Resultado</TableHead>
+                  <TableHead>Quando</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {attempts.slice(0, 50).map(a => {
+                  const u = profiles.find(p => p.id === a.user_id);
+                  return (
+                    <TableRow key={a.id}>
+                      <TableCell>{u?.full_name || a.user_id.slice(0, 8)}</TableCell>
+                      <TableCell className="font-mono">{a.selected_alternative}</TableCell>
+                      <TableCell>{a.is_correct ? <Badge>Correta</Badge> : <Badge variant="destructive">Incorreta</Badge>}</TableCell>
+                      <TableCell className="text-muted-foreground">{new Date(a.created_at).toLocaleString("pt-BR")}</TableCell>
+                    </TableRow>
+                  );
+                })}
+                {attempts.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Sem tentativas</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </Section>
+        </TabsContent>
       </Tabs>
 
       <Section title="Usuários cadastrados">
@@ -189,64 +250,6 @@ const Admin = () => {
               );
             })}
             {profiles.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum usuário ainda</TableCell></TableRow>}
-          </TableBody>
-        </Table>
-      </Section>
-
-      <Section title="Simulados realizados">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Título</TableHead>
-              <TableHead>Usuário</TableHead>
-              <TableHead>Questões</TableHead>
-              <TableHead>Acertos</TableHead>
-              <TableHead>Score</TableHead>
-              <TableHead>Quando</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {simulados.map(s => {
-              const u = profiles.find(p => p.id === s.user_id);
-              return (
-                <TableRow key={s.id}>
-                  <TableCell className="font-medium">{s.title}</TableCell>
-                  <TableCell>{u?.full_name || s.user_id.slice(0, 8)}</TableCell>
-                  <TableCell>{s.total_questions}</TableCell>
-                  <TableCell>{s.correct_count ?? "—"}</TableCell>
-                  <TableCell>{s.score != null ? `${s.score}%` : <Badge variant="secondary">em curso</Badge>}</TableCell>
-                  <TableCell className="text-muted-foreground">{new Date(s.started_at).toLocaleString("pt-BR")}</TableCell>
-                </TableRow>
-              );
-            })}
-            {simulados.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum simulado ainda</TableCell></TableRow>}
-          </TableBody>
-        </Table>
-      </Section>
-
-      <Section title="Tentativas recentes (últimas 200)">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Usuário</TableHead>
-              <TableHead>Alternativa</TableHead>
-              <TableHead>Resultado</TableHead>
-              <TableHead>Quando</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {attempts.slice(0, 50).map(a => {
-              const u = profiles.find(p => p.id === a.user_id);
-              return (
-                <TableRow key={a.id}>
-                  <TableCell>{u?.full_name || a.user_id.slice(0, 8)}</TableCell>
-                  <TableCell className="font-mono">{a.selected_alternative}</TableCell>
-                  <TableCell>{a.is_correct ? <Badge>Correta</Badge> : <Badge variant="destructive">Incorreta</Badge>}</TableCell>
-                  <TableCell className="text-muted-foreground">{new Date(a.created_at).toLocaleString("pt-BR")}</TableCell>
-                </TableRow>
-              );
-            })}
-            {attempts.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Sem tentativas</TableCell></TableRow>}
           </TableBody>
         </Table>
       </Section>
