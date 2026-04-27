@@ -13,6 +13,7 @@ import { Shield, Users, FileQuestion, ListChecks, BookOpen, Sparkles, Loader2 } 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImportExam } from "@/components/admin/ImportExam";
 import { ReviewQueue } from "@/components/admin/ReviewQueue";
+import { SessionsPanel } from "@/components/admin/SessionsPanel";
 import { toast } from "sonner";
 
 const Admin = () => {
@@ -110,6 +111,7 @@ const Admin = () => {
           <TabsTrigger value="import">Importar prova</TabsTrigger>
           <TabsTrigger value="review">Revisão {pendingCount > 0 && `(${pendingCount})`}</TabsTrigger>
           <TabsTrigger value="bulk">Geração em massa</TabsTrigger>
+          <TabsTrigger value="sessions">Sessões & Acessos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="import" className="mt-4">
@@ -155,6 +157,10 @@ const Admin = () => {
           </p>
         </div>
         </Card>
+        </TabsContent>
+
+        <TabsContent value="sessions" className="mt-4">
+          <SessionsPanel />
         </TabsContent>
       </Tabs>
 
