@@ -117,25 +117,36 @@ export const SessionsPanel = () => {
     load();
   };
 
-  const filtered = sessions.filter((s) => {
+  const matchesSearch = (uid: string, s?: SessionRow) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    const p = profileOf(s.user_id);
+    const p = profileOf(uid);
     return (
       p?.full_name?.toLowerCase().includes(q) ||
       p?.crm?.toLowerCase().includes(q) ||
-      s.ip_address?.toLowerCase().includes(q) ||
-      s.user_agent?.toLowerCase().includes(q) ||
-      s.user_id.includes(q)
+      s?.ip_address?.toLowerCase().includes(q) ||
+      s?.user_agent?.toLowerCase().includes(q) ||
+      uid.includes(q)
     );
-  });
+  };
 
-  const active = filtered.filter((s) => !s.revoked_at);
-  const history = filtered;
+  // Histórico = todas as sessões registradas
+  const history = sessions.filter((s) => matchesSearch(s.user_id, s));
 
-  // Agrupa contas com >1 sessão ativa (não deveria acontecer com guard, mas ajuda detectar abuso)
-  const byUser = new Map<string, number>();
-  active.forEach((s) => byUser.set(s.user_id, (byUser.get(s.user_id) || 0) + 1));
+  // Ativas = 1 linha por conta cadastrada (profile), com a sessão ativa mais recente (se existir)
+  const activeSessionsByUser = new Map<string, SessionRow>();
+  sessions
+    .filter((s) => !s.revoked_at)
+    .forEach((s) => {
+      const cur = activeSessionsByUser.get(s.user_id);
+      if (!cur || new Date(s.last_seen_at) > new Date(cur.last_seen_at)) {
+        activeSessionsByUser.set(s.user_id, s);
+      }
+    });
+
+  const activeAccounts = profiles
+    .filter((p) => matchesSearch(p.id, activeSessionsByUser.get(p.id)))
+    .map((p) => ({ profile: p, session: activeSessionsByUser.get(p.id) || null }));
 
   return (
     <Card className="p-6 space-y-4">
@@ -151,7 +162,7 @@ export const SessionsPanel = () => {
 
       <Tabs defaultValue="active">
         <TabsList>
-          <TabsTrigger value="active">Ativas ({active.length})</TabsTrigger>
+          <TabsTrigger value="active">Ativas ({activeAccounts.length})</TabsTrigger>
           <TabsTrigger value="blocked">Bloqueadas ({blocks.length})</TabsTrigger>
           <TabsTrigger value="history">Histórico</TabsTrigger>
           <TabsTrigger value="create">Adicionar conta</TabsTrigger>
@@ -171,40 +182,41 @@ export const SessionsPanel = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {active.map((s) => {
-                  const p = profileOf(s.user_id);
-                  const dup = (byUser.get(s.user_id) || 0) > 1;
+                {activeAccounts.map(({ profile: p, session: s }) => {
+                  const online = !!s;
                   return (
-                    <TableRow key={s.id}>
+                    <TableRow key={p.id}>
                       <TableCell>
                         <div className="font-medium flex items-center gap-2">
-                          {p?.full_name || s.user_id.slice(0, 8)}
-                          {dup && <Badge variant="destructive">multi-sessão</Badge>}
-                          {isBlocked(s.user_id) && <Badge variant="destructive">bloqueado</Badge>}
-                          {isAdminUser(s.user_id) && <Badge className="bg-primary/20 text-primary border-primary/30"><ShieldAlert className="h-3 w-3 mr-1" />admin</Badge>}
+                          {p.full_name || p.id.slice(0, 8)}
+                          {online ? <Badge>online</Badge> : <Badge variant="secondary">offline</Badge>}
+                          {isBlocked(p.id) && <Badge variant="destructive">bloqueado</Badge>}
+                          {isAdminUser(p.id) && <Badge className="bg-primary/20 text-primary border-primary/30"><ShieldAlert className="h-3 w-3 mr-1" />admin</Badge>}
                         </div>
-                        <div className="text-xs text-muted-foreground">{p?.crm || s.user_id.slice(0, 8)}</div>
+                        <div className="text-xs text-muted-foreground">{p.crm || p.id.slice(0, 8)}</div>
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{s.ip_address || "—"}</TableCell>
-                      <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={s.user_agent || ""}>
-                        {s.user_agent || "—"}
+                      <TableCell className="font-mono text-xs">{s?.ip_address || "—"}</TableCell>
+                      <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={s?.user_agent || ""}>
+                        {s?.user_agent || "—"}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleString("pt-BR")}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{new Date(s.last_seen_at).toLocaleString("pt-BR")}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{s ? new Date(s.created_at).toLocaleString("pt-BR") : "—"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{s ? new Date(s.last_seen_at).toLocaleString("pt-BR") : "—"}</TableCell>
                       <TableCell className="text-right space-x-2">
-                        {isAdminUser(s.user_id) ? (
+                        {isAdminUser(p.id) ? (
                           <span className="text-xs text-muted-foreground">protegido</span>
                         ) : (
                           <>
-                            <Button variant="outline" size="sm" onClick={() => revokeSession(s.id)}>
-                              <LogOut className="h-3 w-3 mr-1" />Encerrar
-                            </Button>
-                            {isBlocked(s.user_id) ? (
-                              <Button variant="outline" size="sm" onClick={() => unblockUser(s.user_id)}>
+                            {s && (
+                              <Button variant="outline" size="sm" onClick={() => revokeSession(s.id)}>
+                                <LogOut className="h-3 w-3 mr-1" />Encerrar
+                              </Button>
+                            )}
+                            {isBlocked(p.id) ? (
+                              <Button variant="outline" size="sm" onClick={() => unblockUser(p.id)}>
                                 <ShieldCheck className="h-3 w-3 mr-1" />Desbloquear
                               </Button>
                             ) : (
-                              <Button variant="destructive" size="sm" onClick={() => blockUser(s.user_id)}>
+                              <Button variant="destructive" size="sm" onClick={() => blockUser(p.id)}>
                                 <Ban className="h-3 w-3 mr-1" />Bloquear conta
                               </Button>
                             )}
@@ -214,8 +226,8 @@ export const SessionsPanel = () => {
                     </TableRow>
                   );
                 })}
-                {active.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma sessão ativa</TableCell></TableRow>
+                {activeAccounts.length === 0 && (
+                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma conta cadastrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
