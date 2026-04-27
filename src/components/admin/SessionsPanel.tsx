@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Ban, ShieldCheck, LogOut, RefreshCw } from "lucide-react";
+import { Ban, ShieldCheck, LogOut, RefreshCw, UserPlus, Loader2, ShieldAlert } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 type SessionRow = {
   id: string;
@@ -22,24 +23,32 @@ type SessionRow = {
 };
 type Profile = { id: string; full_name: string | null; crm: string | null };
 type Block = { user_id: string; reason: string | null; blocked_at: string };
+type RoleRow = { user_id: string; role: string };
 
 export const SessionsPanel = () => {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
+  const [roles, setRoles] = useState<RoleRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    const [s, p, b] = await Promise.all([
+    const [s, p, b, r] = await Promise.all([
       supabase.from("user_sessions").select("*").order("last_seen_at", { ascending: false }).limit(500),
       supabase.from("profiles").select("id, full_name, crm"),
       supabase.from("account_blocks").select("user_id, reason, blocked_at"),
+      supabase.from("user_roles").select("user_id, role"),
     ]);
     setSessions((s.data as any) || []);
     setProfiles((p.data as any) || []);
     setBlocks((b.data as any) || []);
+    setRoles((r.data as any) || []);
     setLoading(false);
   };
 
@@ -47,8 +56,27 @@ export const SessionsPanel = () => {
 
   const profileOf = (uid: string) => profiles.find((p) => p.id === uid);
   const isBlocked = (uid: string) => blocks.some((b) => b.user_id === uid);
+  const isAdminUser = (uid: string) => roles.some((r) => r.user_id === uid && r.role === "admin");
+
+  const createUser = async () => {
+    if (!newEmail || !newPassword) return toast.error("Preencha e-mail e senha");
+    if (newPassword.length < 6) return toast.error("Senha precisa ter pelo menos 6 caracteres");
+    setCreating(true);
+    const { data, error } = await supabase.functions.invoke("admin-create-user", {
+      body: { email: newEmail.trim().toLowerCase(), password: newPassword, full_name: newName.trim() || null },
+    });
+    setCreating(false);
+    if (error || (data as any)?.error) {
+      return toast.error((data as any)?.error || error?.message || "Falha ao criar conta");
+    }
+    toast.success(`Conta criada: ${newEmail}`);
+    setNewEmail(""); setNewPassword(""); setNewName("");
+    load();
+  };
 
   const revokeSession = async (id: string) => {
+    const sess = sessions.find((s) => s.id === id);
+    if (sess && isAdminUser(sess.user_id)) return toast.error("Sessões de admin não podem ser encerradas");
     const { error } = await supabase.from("user_sessions")
       .update({ revoked_at: new Date().toISOString(), revoked_reason: "admin_revoked" })
       .eq("id", id);
@@ -58,6 +86,7 @@ export const SessionsPanel = () => {
   };
 
   const revokeAllForUser = async (uid: string) => {
+    if (isAdminUser(uid)) return toast.error("Sessões de admin não podem ser encerradas");
     const { error } = await supabase.from("user_sessions")
       .update({ revoked_at: new Date().toISOString(), revoked_reason: "admin_revoked" })
       .eq("user_id", uid).is("revoked_at", null);
@@ -67,6 +96,7 @@ export const SessionsPanel = () => {
   };
 
   const blockUser = async (uid: string) => {
+    if (isAdminUser(uid)) return toast.error("Contas de admin não podem ser bloqueadas");
     const reason = prompt("Motivo do bloqueio (opcional):") || null;
     const { data: me } = await supabase.auth.getUser();
     const { error } = await supabase.from("account_blocks").upsert({
