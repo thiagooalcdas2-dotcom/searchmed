@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Ban, ShieldCheck, LogOut, RefreshCw } from "lucide-react";
+import { Ban, ShieldCheck, LogOut, RefreshCw, UserPlus, Loader2, ShieldAlert } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 type SessionRow = {
   id: string;
@@ -22,24 +23,32 @@ type SessionRow = {
 };
 type Profile = { id: string; full_name: string | null; crm: string | null };
 type Block = { user_id: string; reason: string | null; blocked_at: string };
+type RoleRow = { user_id: string; role: string };
 
 export const SessionsPanel = () => {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
+  const [roles, setRoles] = useState<RoleRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    const [s, p, b] = await Promise.all([
+    const [s, p, b, r] = await Promise.all([
       supabase.from("user_sessions").select("*").order("last_seen_at", { ascending: false }).limit(500),
       supabase.from("profiles").select("id, full_name, crm"),
       supabase.from("account_blocks").select("user_id, reason, blocked_at"),
+      supabase.from("user_roles").select("user_id, role"),
     ]);
     setSessions((s.data as any) || []);
     setProfiles((p.data as any) || []);
     setBlocks((b.data as any) || []);
+    setRoles((r.data as any) || []);
     setLoading(false);
   };
 
@@ -47,8 +56,27 @@ export const SessionsPanel = () => {
 
   const profileOf = (uid: string) => profiles.find((p) => p.id === uid);
   const isBlocked = (uid: string) => blocks.some((b) => b.user_id === uid);
+  const isAdminUser = (uid: string) => roles.some((r) => r.user_id === uid && r.role === "admin");
+
+  const createUser = async () => {
+    if (!newEmail || !newPassword) return toast.error("Preencha e-mail e senha");
+    if (newPassword.length < 6) return toast.error("Senha precisa ter pelo menos 6 caracteres");
+    setCreating(true);
+    const { data, error } = await supabase.functions.invoke("admin-create-user", {
+      body: { email: newEmail.trim().toLowerCase(), password: newPassword, full_name: newName.trim() || null },
+    });
+    setCreating(false);
+    if (error || (data as any)?.error) {
+      return toast.error((data as any)?.error || error?.message || "Falha ao criar conta");
+    }
+    toast.success(`Conta criada: ${newEmail}`);
+    setNewEmail(""); setNewPassword(""); setNewName("");
+    load();
+  };
 
   const revokeSession = async (id: string) => {
+    const sess = sessions.find((s) => s.id === id);
+    if (sess && isAdminUser(sess.user_id)) return toast.error("Sessões de admin não podem ser encerradas");
     const { error } = await supabase.from("user_sessions")
       .update({ revoked_at: new Date().toISOString(), revoked_reason: "admin_revoked" })
       .eq("id", id);
@@ -58,6 +86,7 @@ export const SessionsPanel = () => {
   };
 
   const revokeAllForUser = async (uid: string) => {
+    if (isAdminUser(uid)) return toast.error("Sessões de admin não podem ser encerradas");
     const { error } = await supabase.from("user_sessions")
       .update({ revoked_at: new Date().toISOString(), revoked_reason: "admin_revoked" })
       .eq("user_id", uid).is("revoked_at", null);
@@ -67,6 +96,7 @@ export const SessionsPanel = () => {
   };
 
   const blockUser = async (uid: string) => {
+    if (isAdminUser(uid)) return toast.error("Contas de admin não podem ser bloqueadas");
     const reason = prompt("Motivo do bloqueio (opcional):") || null;
     const { data: me } = await supabase.auth.getUser();
     const { error } = await supabase.from("account_blocks").upsert({
@@ -124,6 +154,7 @@ export const SessionsPanel = () => {
           <TabsTrigger value="active">Ativas ({active.length})</TabsTrigger>
           <TabsTrigger value="blocked">Bloqueadas ({blocks.length})</TabsTrigger>
           <TabsTrigger value="history">Histórico</TabsTrigger>
+          <TabsTrigger value="create">Adicionar conta</TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="mt-4">
@@ -150,6 +181,7 @@ export const SessionsPanel = () => {
                           {p?.full_name || s.user_id.slice(0, 8)}
                           {dup && <Badge variant="destructive">multi-sessão</Badge>}
                           {isBlocked(s.user_id) && <Badge variant="destructive">bloqueado</Badge>}
+                          {isAdminUser(s.user_id) && <Badge className="bg-primary/20 text-primary border-primary/30"><ShieldAlert className="h-3 w-3 mr-1" />admin</Badge>}
                         </div>
                         <div className="text-xs text-muted-foreground">{p?.crm || s.user_id.slice(0, 8)}</div>
                       </TableCell>
@@ -160,17 +192,23 @@ export const SessionsPanel = () => {
                       <TableCell className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleString("pt-BR")}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{new Date(s.last_seen_at).toLocaleString("pt-BR")}</TableCell>
                       <TableCell className="text-right space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => revokeSession(s.id)}>
-                          <LogOut className="h-3 w-3 mr-1" />Encerrar
-                        </Button>
-                        {isBlocked(s.user_id) ? (
-                          <Button variant="outline" size="sm" onClick={() => unblockUser(s.user_id)}>
-                            <ShieldCheck className="h-3 w-3 mr-1" />Desbloquear
-                          </Button>
+                        {isAdminUser(s.user_id) ? (
+                          <span className="text-xs text-muted-foreground">protegido</span>
                         ) : (
-                          <Button variant="destructive" size="sm" onClick={() => blockUser(s.user_id)}>
-                            <Ban className="h-3 w-3 mr-1" />Bloquear conta
-                          </Button>
+                          <>
+                            <Button variant="outline" size="sm" onClick={() => revokeSession(s.id)}>
+                              <LogOut className="h-3 w-3 mr-1" />Encerrar
+                            </Button>
+                            {isBlocked(s.user_id) ? (
+                              <Button variant="outline" size="sm" onClick={() => unblockUser(s.user_id)}>
+                                <ShieldCheck className="h-3 w-3 mr-1" />Desbloquear
+                              </Button>
+                            ) : (
+                              <Button variant="destructive" size="sm" onClick={() => blockUser(s.user_id)}>
+                                <Ban className="h-3 w-3 mr-1" />Bloquear conta
+                              </Button>
+                            )}
+                          </>
                         )}
                       </TableCell>
                     </TableRow>
@@ -244,15 +282,49 @@ export const SessionsPanel = () => {
                         : <Badge>ativa</Badge>}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="outline" size="sm" onClick={() => revokeAllForUser(s.user_id)}>
-                        Encerrar todas
-                      </Button>
+                      {isAdminUser(s.user_id) ? (
+                        <span className="text-xs text-muted-foreground">protegido</span>
+                      ) : (
+                        <Button variant="outline" size="sm" onClick={() => revokeAllForUser(s.user_id)}>
+                          Encerrar todas
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
+        </TabsContent>
+
+        <TabsContent value="create" className="mt-4">
+          <Card className="p-6 max-w-xl">
+            <div className="flex items-center gap-2 mb-4">
+              <UserPlus className="h-5 w-5 text-primary" />
+              <h3 className="font-display text-xl">Adicionar conta</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Crie acessos para alunos. As contas criadas aqui já entram <strong>confirmadas</strong> e
+              recebem perfil <strong>básico</strong> (sem acesso ao painel admin).
+            </p>
+            <div className="space-y-3">
+              <div>
+                <Label>Nome completo (opcional)</Label>
+                <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="João Silva" maxLength={120} />
+              </div>
+              <div>
+                <Label>E-mail (login)</Label>
+                <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="joao12@gmail.com" maxLength={255} />
+              </div>
+              <div>
+                <Label>Senha</Label>
+                <Input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="mínimo 6 caracteres" maxLength={128} />
+              </div>
+              <Button onClick={createUser} disabled={creating} className="bg-gradient-primary text-primary-foreground">
+                {creating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Criando…</> : <><UserPlus className="h-4 w-4 mr-2" />Criar conta</>}
+              </Button>
+            </div>
+          </Card>
         </TabsContent>
       </Tabs>
     </Card>
