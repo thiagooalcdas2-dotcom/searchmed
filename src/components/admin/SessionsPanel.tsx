@@ -154,6 +154,7 @@ export const SessionsPanel = () => {
           <TabsTrigger value="active">Ativas ({active.length})</TabsTrigger>
           <TabsTrigger value="blocked">Bloqueadas ({blocks.length})</TabsTrigger>
           <TabsTrigger value="history">Histórico</TabsTrigger>
+          <TabsTrigger value="create">Adicionar conta</TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="mt-4">
@@ -180,6 +181,7 @@ export const SessionsPanel = () => {
                           {p?.full_name || s.user_id.slice(0, 8)}
                           {dup && <Badge variant="destructive">multi-sessão</Badge>}
                           {isBlocked(s.user_id) && <Badge variant="destructive">bloqueado</Badge>}
+                          {isAdminUser(s.user_id) && <Badge className="bg-primary/20 text-primary border-primary/30"><ShieldAlert className="h-3 w-3 mr-1" />admin</Badge>}
                         </div>
                         <div className="text-xs text-muted-foreground">{p?.crm || s.user_id.slice(0, 8)}</div>
                       </TableCell>
@@ -190,17 +192,23 @@ export const SessionsPanel = () => {
                       <TableCell className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleString("pt-BR")}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{new Date(s.last_seen_at).toLocaleString("pt-BR")}</TableCell>
                       <TableCell className="text-right space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => revokeSession(s.id)}>
-                          <LogOut className="h-3 w-3 mr-1" />Encerrar
-                        </Button>
-                        {isBlocked(s.user_id) ? (
-                          <Button variant="outline" size="sm" onClick={() => unblockUser(s.user_id)}>
-                            <ShieldCheck className="h-3 w-3 mr-1" />Desbloquear
-                          </Button>
+                        {isAdminUser(s.user_id) ? (
+                          <span className="text-xs text-muted-foreground">protegido</span>
                         ) : (
-                          <Button variant="destructive" size="sm" onClick={() => blockUser(s.user_id)}>
-                            <Ban className="h-3 w-3 mr-1" />Bloquear conta
-                          </Button>
+                          <>
+                            <Button variant="outline" size="sm" onClick={() => revokeSession(s.id)}>
+                              <LogOut className="h-3 w-3 mr-1" />Encerrar
+                            </Button>
+                            {isBlocked(s.user_id) ? (
+                              <Button variant="outline" size="sm" onClick={() => unblockUser(s.user_id)}>
+                                <ShieldCheck className="h-3 w-3 mr-1" />Desbloquear
+                              </Button>
+                            ) : (
+                              <Button variant="destructive" size="sm" onClick={() => blockUser(s.user_id)}>
+                                <Ban className="h-3 w-3 mr-1" />Bloquear conta
+                              </Button>
+                            )}
+                          </>
                         )}
                       </TableCell>
                     </TableRow>
