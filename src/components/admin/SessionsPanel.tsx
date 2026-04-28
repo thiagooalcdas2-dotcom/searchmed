@@ -432,6 +432,29 @@ export const SessionsPanel = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={!!resetTarget} onOpenChange={(o) => { if (!o) { setResetTarget(null); setResetPw(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Redefinir senha</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              Conta: <span className="font-mono">{resetTarget?.email || resetTarget?.user_id.slice(0, 8)}</span>
+            </div>
+            <div>
+              <Label>Nova senha</Label>
+              <Input type="text" value={resetPw} onChange={(e) => setResetPw(e.target.value)} placeholder="mínimo 6 caracteres" maxLength={128} autoFocus />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setResetTarget(null); setResetPw(""); }}>Cancelar</Button>
+            <Button onClick={doReset} disabled={resetting} className="bg-gradient-primary text-primary-foreground">
+              {resetting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando…</> : "Salvar nova senha"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
