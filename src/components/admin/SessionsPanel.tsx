@@ -319,7 +319,7 @@ export const SessionsPanel = () => {
                       <TableCell><CredCell uid={p.id} /></TableCell>
                       <TableCell className="font-mono text-xs">{s?.ip_address || "—"}</TableCell>
                       <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={s?.user_agent || ""}>
-                        {s?.user_agent || "—"}
+                        {formatDevice(s?.user_agent)}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{s ? new Date(s.created_at).toLocaleString("pt-BR") : "—"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{s ? new Date(s.last_seen_at).toLocaleString("pt-BR") : "—"}</TableCell>
@@ -410,7 +410,7 @@ export const SessionsPanel = () => {
                   <TableRow key={s.id}>
                     <TableCell className="font-medium">{p?.full_name || s.user_id.slice(0, 8)}</TableCell>
                     <TableCell className="font-mono text-xs">{s.ip_address || "—"}</TableCell>
-                    <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={s.user_agent || ""}>{s.user_agent || "—"}</TableCell>
+                    <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={s.user_agent || ""}>{formatDevice(s.user_agent)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleString("pt-BR")}</TableCell>
                     <TableCell>
                       {s.revoked_at
