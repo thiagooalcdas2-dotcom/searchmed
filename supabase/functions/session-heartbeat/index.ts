@@ -29,8 +29,12 @@ Deno.serve(async (req) => {
     if (!deviceId) return json({ error: "device_id required" }, 400);
 
     const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+      req.headers.get("x-real-ip") ||
       req.headers.get("cf-connecting-ip") ||
+      req.headers.get("true-client-ip") ||
+      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+      req.headers.get("fly-client-ip") ||
+      req.headers.get("x-client-ip") ||
       "unknown";
     const ua = req.headers.get("user-agent") || "unknown";
 
