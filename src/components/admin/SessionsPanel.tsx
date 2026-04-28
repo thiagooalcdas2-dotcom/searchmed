@@ -27,6 +27,37 @@ type Block = { user_id: string; reason: string | null; blocked_at: string };
 type RoleRow = { user_id: string; role: string };
 type CredRow = { user_id: string; email: string; password: string };
 
+const formatDevice = (ua: string | null | undefined): string => {
+  if (!ua) return "—";
+  const s = ua;
+  // Browser
+  let browser = "Navegador";
+  const edge = s.match(/Edg\/([\d.]+)/);
+  const opera = s.match(/OPR\/([\d.]+)/);
+  const chrome = s.match(/Chrome\/([\d.]+)/);
+  const firefox = s.match(/Firefox\/([\d.]+)/);
+  const safari = s.match(/Version\/([\d.]+).*Safari/);
+  if (edge) browser = `Edge ${edge[1].split(".")[0]}`;
+  else if (opera) browser = `Opera ${opera[1].split(".")[0]}`;
+  else if (firefox) browser = `Firefox ${firefox[1].split(".")[0]}`;
+  else if (chrome) browser = `Chrome ${chrome[1].split(".")[0]}`;
+  else if (safari) browser = `Safari ${safari[1].split(".")[0]}`;
+  // OS
+  let os = "";
+  if (/Windows NT 10/.test(s)) os = "Windows 10/11";
+  else if (/Windows NT 6\.3/.test(s)) os = "Windows 8.1";
+  else if (/Windows NT 6\.1/.test(s)) os = "Windows 7";
+  else if (/Windows/.test(s)) os = "Windows";
+  else if (/Android ([\d.]+)/.test(s)) os = `Android ${s.match(/Android ([\d.]+)/)![1]}`;
+  else if (/iPhone|iPad|iOS/.test(s)) os = "iOS";
+  else if (/Mac OS X ([\d_\.]+)/.test(s)) os = `macOS ${s.match(/Mac OS X ([\d_\.]+)/)![1].replace(/_/g, ".")}`;
+  else if (/Linux/.test(s)) os = "Linux";
+  // Tipo
+  const isMobile = /Mobile|Android|iPhone|iPad/.test(s);
+  const type = isMobile ? "Mobile" : "Desktop";
+  return [browser, os, type].filter(Boolean).join(" · ");
+};
+
 export const SessionsPanel = () => {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -288,7 +319,7 @@ export const SessionsPanel = () => {
                       <TableCell><CredCell uid={p.id} /></TableCell>
                       <TableCell className="font-mono text-xs">{s?.ip_address || "—"}</TableCell>
                       <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={s?.user_agent || ""}>
-                        {s?.user_agent || "—"}
+                        {formatDevice(s?.user_agent)}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{s ? new Date(s.created_at).toLocaleString("pt-BR") : "—"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{s ? new Date(s.last_seen_at).toLocaleString("pt-BR") : "—"}</TableCell>
@@ -379,7 +410,7 @@ export const SessionsPanel = () => {
                   <TableRow key={s.id}>
                     <TableCell className="font-medium">{p?.full_name || s.user_id.slice(0, 8)}</TableCell>
                     <TableCell className="font-mono text-xs">{s.ip_address || "—"}</TableCell>
-                    <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={s.user_agent || ""}>{s.user_agent || "—"}</TableCell>
+                    <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={s.user_agent || ""}>{formatDevice(s.user_agent)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleString("pt-BR")}</TableCell>
                     <TableCell>
                       {s.revoked_at
