@@ -263,6 +263,7 @@ export const SessionsPanel = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Usuário</TableHead>
+                  <TableHead>Credenciais</TableHead>
                   <TableHead>IP</TableHead>
                   <TableHead>Dispositivo</TableHead>
                   <TableHead>Login</TableHead>
@@ -284,6 +285,7 @@ export const SessionsPanel = () => {
                         </div>
                         <div className="text-xs text-muted-foreground">{p.crm || p.id.slice(0, 8)}</div>
                       </TableCell>
+                      <TableCell><CredCell uid={p.id} /></TableCell>
                       <TableCell className="font-mono text-xs">{s?.ip_address || "—"}</TableCell>
                       <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={s?.user_agent || ""}>
                         {s?.user_agent || "—"}
@@ -316,7 +318,7 @@ export const SessionsPanel = () => {
                   );
                 })}
                 {activeAccounts.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma conta cadastrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma conta cadastrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -328,6 +330,7 @@ export const SessionsPanel = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Usuário</TableHead>
+                <TableHead>Credenciais</TableHead>
                 <TableHead>Motivo</TableHead>
                 <TableHead>Bloqueado em</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -339,6 +342,7 @@ export const SessionsPanel = () => {
                 return (
                   <TableRow key={b.user_id}>
                     <TableCell className="font-medium">{p?.full_name || b.user_id.slice(0, 8)}</TableCell>
+                    <TableCell><CredCell uid={b.user_id} /></TableCell>
                     <TableCell className="text-muted-foreground">{b.reason || "—"}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{new Date(b.blocked_at).toLocaleString("pt-BR")}</TableCell>
                     <TableCell className="text-right">
@@ -350,7 +354,7 @@ export const SessionsPanel = () => {
                 );
               })}
               {blocks.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhuma conta bloqueada</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma conta bloqueada</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
