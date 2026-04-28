@@ -35,6 +35,27 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_credentials: {
+        Row: {
+          email: string
+          password: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          email: string
+          password: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          email?: string
+          password?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       discipline_years: {
         Row: {
           course_year: Database["public"]["Enums"]["course_year"]
