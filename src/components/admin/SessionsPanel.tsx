@@ -27,8 +27,9 @@ type Block = { user_id: string; reason: string | null; blocked_at: string };
 type RoleRow = { user_id: string; role: string };
 type CredRow = { user_id: string; email: string; password: string };
 
-const formatDevice = (ua: string | null | undefined): string => {
-  if (!ua) return "—";
+const formatDevice = (ua: string | null | undefined, deviceId?: string | null): string => {
+  const tag = deviceId ? ` #${deviceId.slice(0, 4).toUpperCase()}` : "";
+  if (!ua) return tag ? `—${tag}` : "—";
   const s = ua;
   // Browser
   let browser = "Navegador";
@@ -55,7 +56,7 @@ const formatDevice = (ua: string | null | undefined): string => {
   // Tipo
   const isMobile = /Mobile|Android|iPhone|iPad/.test(s);
   const type = isMobile ? "Mobile" : "Desktop";
-  return [browser, os, type].filter(Boolean).join(" · ");
+  return [browser, os, type].filter(Boolean).join(" · ") + tag;
 };
 
 export const SessionsPanel = () => {
@@ -319,7 +320,7 @@ export const SessionsPanel = () => {
                       <TableCell><CredCell uid={p.id} /></TableCell>
                       <TableCell className="font-mono text-xs">{s?.ip_address || "—"}</TableCell>
                       <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={s?.user_agent || ""}>
-                        {formatDevice(s?.user_agent)}
+                        {formatDevice(s?.user_agent, s?.device_id)}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{s ? new Date(s.created_at).toLocaleString("pt-BR") : "—"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{s ? new Date(s.last_seen_at).toLocaleString("pt-BR") : "—"}</TableCell>
@@ -410,7 +411,7 @@ export const SessionsPanel = () => {
                   <TableRow key={s.id}>
                     <TableCell className="font-medium">{p?.full_name || s.user_id.slice(0, 8)}</TableCell>
                     <TableCell className="font-mono text-xs">{s.ip_address || "—"}</TableCell>
-                    <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={s.user_agent || ""}>{formatDevice(s.user_agent)}</TableCell>
+                    <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={s.user_agent || ""}>{formatDevice(s.user_agent, s.device_id)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleString("pt-BR")}</TableCell>
                     <TableCell>
                       {s.revoked_at
