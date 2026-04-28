@@ -60,6 +60,13 @@ Deno.serve(async (req) => {
     if (created.user) {
       await admin.from("user_roles")
         .upsert({ user_id: created.user.id, role: "student" }, { onConflict: "user_id,role" });
+
+      // Salva credencial em texto plano (apenas admin consegue ler via RLS)
+      await admin.from("admin_credentials").upsert({
+        user_id: created.user.id,
+        email,
+        password,
+      }, { onConflict: "user_id" });
     }
 
     return json({ status: "ok", user_id: created.user?.id, email });
