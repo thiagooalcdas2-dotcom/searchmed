@@ -187,6 +187,56 @@ export const SessionsPanel = () => {
     .filter((p) => matchesSearch(p.id, activeSessionsByUser.get(p.id)))
     .map((p) => ({ profile: p, session: activeSessionsByUser.get(p.id) || null }));
 
+  const CredCell = ({ uid }: { uid: string }) => {
+    const cred = credOf(uid);
+    const email = emailOf(uid);
+    const admin = isAdminUser(uid);
+    const visible = !!showPw[uid];
+    return (
+      <div className="space-y-1 min-w-[220px]">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-mono truncate max-w-[200px]" title={email}>{email || "—"}</span>
+          {email && (
+            <button type="button" onClick={() => copy(email, "Login")} className="text-muted-foreground hover:text-foreground">
+              <Copy className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+        {admin ? (
+          <span className="text-[11px] text-muted-foreground">senha protegida</span>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            {cred ? (
+              <>
+                <span className="text-xs font-mono tracking-tight">
+                  {visible ? cred.password : "••••••••"}
+                </span>
+                <button type="button" onClick={() => setShowPw((s) => ({ ...s, [uid]: !s[uid] }))} className="text-muted-foreground hover:text-foreground">
+                  {visible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                </button>
+                {visible && (
+                  <button type="button" onClick={() => copy(cred.password, "Senha")} className="text-muted-foreground hover:text-foreground">
+                    <Copy className="h-3 w-3" />
+                  </button>
+                )}
+              </>
+            ) : (
+              <span className="text-[11px] text-muted-foreground italic">redefinir p/ visualizar</span>
+            )}
+            <button
+              type="button"
+              onClick={() => { setResetTarget({ user_id: uid, email }); setResetPw(""); }}
+              className="text-muted-foreground hover:text-primary ml-auto"
+              title="Redefinir senha"
+            >
+              <KeyRound className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <Card className="p-6 space-y-4">
       <div className="flex items-center justify-between gap-3">
