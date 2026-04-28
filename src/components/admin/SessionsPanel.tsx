@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Ban, ShieldCheck, LogOut, RefreshCw, UserPlus, Loader2, ShieldAlert } from "lucide-react";
+import { Ban, ShieldCheck, LogOut, RefreshCw, UserPlus, Loader2, ShieldAlert, Eye, EyeOff, KeyRound, Copy } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type SessionRow = {
   id: string;
@@ -24,12 +25,19 @@ type SessionRow = {
 type Profile = { id: string; full_name: string | null; crm: string | null };
 type Block = { user_id: string; reason: string | null; blocked_at: string };
 type RoleRow = { user_id: string; role: string };
+type CredRow = { user_id: string; email: string; password: string };
 
 export const SessionsPanel = () => {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
+  const [creds, setCreds] = useState<CredRow[]>([]);
+  const [emailsMap, setEmailsMap] = useState<Record<string, string>>({});
+  const [showPw, setShowPw] = useState<Record<string, boolean>>({});
+  const [resetTarget, setResetTarget] = useState<{ user_id: string; email: string } | null>(null);
+  const [resetPw, setResetPw] = useState("");
+  const [resetting, setResetting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [newEmail, setNewEmail] = useState("");
@@ -39,16 +47,23 @@ export const SessionsPanel = () => {
 
   const load = async () => {
     setLoading(true);
-    const [s, p, b, r] = await Promise.all([
+    const [s, p, b, r, c] = await Promise.all([
       supabase.from("user_sessions").select("*").order("last_seen_at", { ascending: false }).limit(500),
       supabase.from("profiles").select("id, full_name, crm"),
       supabase.from("account_blocks").select("user_id, reason, blocked_at"),
       supabase.from("user_roles").select("user_id, role"),
+      supabase.from("admin_credentials").select("user_id, email, password"),
     ]);
     setSessions((s.data as any) || []);
     setProfiles((p.data as any) || []);
     setBlocks((b.data as any) || []);
     setRoles((r.data as any) || []);
+    setCreds((c.data as any) || []);
+    // busca e-mails de todos usuários (fallback para contas antigas)
+    try {
+      const { data: em } = await supabase.functions.invoke("admin-list-emails", { body: {} });
+      if (em && (em as any).emails) setEmailsMap((em as any).emails);
+    } catch { /* silencioso */ }
     setLoading(false);
   };
 
@@ -57,6 +72,29 @@ export const SessionsPanel = () => {
   const profileOf = (uid: string) => profiles.find((p) => p.id === uid);
   const isBlocked = (uid: string) => blocks.some((b) => b.user_id === uid);
   const isAdminUser = (uid: string) => roles.some((r) => r.user_id === uid && r.role === "admin");
+  const credOf = (uid: string) => creds.find((c) => c.user_id === uid);
+  const emailOf = (uid: string) => credOf(uid)?.email || emailsMap[uid] || "";
+
+  const copy = async (text: string, label: string) => {
+    try { await navigator.clipboard.writeText(text); toast.success(`${label} copiado`); }
+    catch { toast.error("Falha ao copiar"); }
+  };
+
+  const doReset = async () => {
+    if (!resetTarget) return;
+    if (resetPw.length < 6) return toast.error("Senha precisa de pelo menos 6 caracteres");
+    setResetting(true);
+    const { data, error } = await supabase.functions.invoke("admin-reset-password", {
+      body: { user_id: resetTarget.user_id, new_password: resetPw },
+    });
+    setResetting(false);
+    if (error || (data as any)?.error) {
+      return toast.error((data as any)?.error || error?.message || "Falha ao redefinir");
+    }
+    toast.success("Senha redefinida");
+    setResetTarget(null); setResetPw("");
+    load();
+  };
 
   const createUser = async () => {
     if (!newEmail || !newPassword) return toast.error("Preencha e-mail e senha");
@@ -124,6 +162,7 @@ export const SessionsPanel = () => {
     return (
       p?.full_name?.toLowerCase().includes(q) ||
       p?.crm?.toLowerCase().includes(q) ||
+      emailOf(uid).toLowerCase().includes(q) ||
       s?.ip_address?.toLowerCase().includes(q) ||
       s?.user_agent?.toLowerCase().includes(q) ||
       uid.includes(q)
