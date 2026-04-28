@@ -27,8 +27,9 @@ type Block = { user_id: string; reason: string | null; blocked_at: string };
 type RoleRow = { user_id: string; role: string };
 type CredRow = { user_id: string; email: string; password: string };
 
-const formatDevice = (ua: string | null | undefined): string => {
-  if (!ua) return "—";
+const formatDevice = (ua: string | null | undefined, deviceId?: string | null): string => {
+  const tag = deviceId ? ` #${deviceId.slice(0, 4).toUpperCase()}` : "";
+  if (!ua) return tag ? `—${tag}` : "—";
   const s = ua;
   // Browser
   let browser = "Navegador";
@@ -55,7 +56,7 @@ const formatDevice = (ua: string | null | undefined): string => {
   // Tipo
   const isMobile = /Mobile|Android|iPhone|iPad/.test(s);
   const type = isMobile ? "Mobile" : "Desktop";
-  return [browser, os, type].filter(Boolean).join(" · ");
+  return [browser, os, type].filter(Boolean).join(" · ") + tag;
 };
 
 export const SessionsPanel = () => {
