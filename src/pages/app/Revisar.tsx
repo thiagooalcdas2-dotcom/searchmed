@@ -143,7 +143,8 @@ const Revisar = () => {
               {reviewedToday > 0 && <Badge variant="outline" className="border-success text-success">Hoje você revisou {reviewedToday}</Badge>}
             </Card>
           ) : current ? (
-            <Card className="bg-card-elegant border-border p-6 md:p-8">
+            <div className="grid lg:grid-cols-[1fr_220px] gap-6">
+              <Card className="bg-card-elegant border-border p-6 md:p-8">
               <div className="flex flex-wrap items-center gap-2 mb-4 text-xs">
                 <Badge variant="outline">{pos + 1} / {due.length}</Badge>
                 <Badge variant="outline" className="border-primary/40 text-primary">{current.questions.discipline}</Badge>
@@ -210,7 +211,33 @@ const Revisar = () => {
                   </div>
                 </div>
               )}
-            </Card>
+              </Card>
+              <Card className="bg-card-elegant border-border p-4 h-fit lg:sticky lg:top-6 order-first lg:order-last">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">Sessão de hoje</div>
+                <div className="grid grid-cols-8 lg:grid-cols-5 gap-1.5">
+                  {due.map((c, i) => {
+                    const isCurrent = i === pos;
+                    const isDone = i < pos;
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => { setPos(i); setRevealed(false); setSelected(null); }}
+                        className={`aspect-square rounded text-xs font-mono border transition ${
+                          isCurrent ? "border-primary ring-2 ring-primary/40" :
+                          isDone ? "border-success/50 bg-success/10 text-success" :
+                          "border-border hover:border-primary/40"
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-3 text-[10px] text-muted-foreground">
+                  {pos + 1} de {due.length} · {due.length - pos - 1} restantes
+                </div>
+              </Card>
+            </div>
           ) : null}
         </TabsContent>
 

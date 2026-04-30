@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { QuestionCard, QuestionData } from "@/components/QuestionCard";
+import { QuestionPager } from "@/components/QuestionPager";
 import { CascadeFilter, CascadeValue } from "@/components/CascadeFilter";
 import { Sparkles, Search, Wand2, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -150,7 +151,13 @@ const Enamed = () => {
               </div>
             </div>
           </Card>
-          {searchResults.map(q => <QuestionCard key={q.id} q={q} />)}
+          {searchResults.length > 0 && (
+            <QuestionPager
+              key={`search-${originSearch}-${searchFilter.year}-${searchFilter.discipline}-${searchFilter.difficulty}`}
+              questions={searchResults}
+              emptyMessage="Nenhuma questão oficial encontrada para esse filtro."
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="generate" className="mt-6">
@@ -174,16 +181,18 @@ const Enamed = () => {
               Estas questões são <strong>inéditas, geradas por IA</strong>, e ficam marcadas como <span className="text-destructive">IA — não oficial</span>. Vão para revisão antes de aparecerem no banco oficial.
             </p>
           </Card>
-          <div className="mt-6 space-y-4">
-            {generated.map((g) => (
-              <div key={g.id}>
-                <div className="text-xs text-muted-foreground mb-2">
-                  IA · confiança {(g._meta?.confidence * 100).toFixed(0)}% · status: pendente de revisão
-                </div>
-                <QuestionCard key={g.id} q={g as any} />
+          {generated.length > 0 && (
+            <div className="mt-6">
+              <div className="text-xs text-muted-foreground mb-2">
+                {generated.length} questão(ões) IA · navegue pelo painel ao lado.
               </div>
-            ))}
-          </div>
+              <QuestionPager
+                key={`gen-${generated.length}`}
+                questions={generated as any}
+                emptyMessage="Nenhuma questão gerada ainda."
+              />
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="transform" className="mt-6">
