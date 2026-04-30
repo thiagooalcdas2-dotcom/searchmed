@@ -4,18 +4,35 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Medal, TrendingUp, Flame, Calendar, ChevronRight } from "lucide-react";
+import { Trophy, Medal, TrendingUp, Flame, Calendar, ChevronRight, Crown, Zap, Target } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area,
 } from "recharts";
 
 type DiscStat = { name: string; correct: number; total: number };
-type RankRow = { user_id: string; name: string; total: number; correct: number; pct: number };
+type RankRow = { user_id: string; name: string; total: number; correct: number; pct: number; points: number; tier: string };
 type DailyPoint = { date: string; label: string; total: number; correct: number; pct: number };
 type HeatCell = { discipline: string; easy: { c: number; t: number }; medium: { c: number; t: number }; hard: { c: number; t: number } };
 type SimRow = { id: string; title: string; total_questions: number; correct_count: number | null; score: number | null; finished_at: string | null; started_at: string };
 
 const DIFF_LABEL: Record<string, string> = { easy: "Fácil", medium: "Médio", hard: "Difícil" };
+
+// Pontuação: cada acerto vale por dificuldade. Erro vale 0. Volume importa, mas % também.
+// pontos = easy*1 + medium*2 + hard*3 (apenas em acertos), com bônus de consistência.
+function tierFor(rank: number): { label: string; tone: string } {
+  if (rank === 1) return { label: "Diamante", tone: "diamond" };
+  if (rank <= 3) return { label: "Pódio", tone: "gold" };
+  if (rank <= 10) return { label: "Top 10", tone: "primary" };
+  if (rank <= 25) return { label: "Top 25", tone: "silver" };
+  if (rank <= 50) return { label: "Top 50", tone: "bronze" };
+  return { label: "Competidor", tone: "muted" };
+}
+
+function initials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join("") || "?";
+}
 
 function pctColor(pct: number) {
   if (pct >= 80) return "bg-success/80";
@@ -34,13 +51,15 @@ const Desempenho = () => {
   const [heat, setHeat] = useState<HeatCell[]>([]);
   const [streak, setStreak] = useState(0);
   const [sims, setSims] = useState<SimRow[]>([]);
+  const [discDetail, setDiscDetail] = useState<{ name: string; cells: HeatCell } | null>(null);
+  const [discAttempts, setDiscAttempts] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
       const { data } = await supabase
         .from("question_attempts")
-        .select("is_correct, created_at, questions(discipline, difficulty)")
+        .select("is_correct, created_at, question_id, questions(discipline, difficulty)")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true });
       const att = (data || []) as any[];
@@ -116,16 +135,21 @@ const Desempenho = () => {
       // Ranking
       const { data: allAtt } = await supabase
         .from("question_attempts")
-        .select("user_id, is_correct");
+        .select("user_id, is_correct, questions(difficulty)");
       const { data: profs } = await supabase.from("profiles").select("id, full_name");
       const nameOf = new Map<string, string>((profs || []).map((p: any) => [p.id, p.full_name || "Usuário"]));
-      const agg = new Map<string, { t: number; c: number }>();
+      const agg = new Map<string, { t: number; c: number; points: number }>();
       (allAtt || []).forEach((a: any) => {
-        const e = agg.get(a.user_id) || { t: 0, c: 0 };
-        e.t += 1; if (a.is_correct) e.c += 1;
+        const e = agg.get(a.user_id) || { t: 0, c: 0, points: 0 };
+        e.t += 1;
+        if (a.is_correct) {
+          e.c += 1;
+          const diff = a.questions?.difficulty || "medium";
+          e.points += diff === "hard" ? 3 : diff === "easy" ? 1 : 2;
+        }
         agg.set(a.user_id, e);
       });
-      const rows: RankRow[] = [...agg.entries()]
+      const ranked = [...agg.entries()]
         .filter(([, v]) => v.t >= 1)
         .map(([uid, v]) => ({
           user_id: uid,
@@ -133,15 +157,33 @@ const Desempenho = () => {
           total: v.t,
           correct: v.c,
           pct: Math.round((v.c / v.t) * 100),
+          points: v.points,
         }))
-        .sort((a, b) => b.pct - a.pct || b.total - a.total)
-        .slice(0, 50);
+        // Ordena por pontos (volume × dificuldade × acerto) — combate a "100% com 1 questão"
+        .sort((a, b) => b.points - a.points || b.pct - a.pct || b.total - a.total)
+        .slice(0, 100);
+      const rows: RankRow[] = ranked.map((r, i) => ({ ...r, tier: tierFor(i + 1).label }));
       setRanking(rows);
     })();
   }, [user]);
 
   const last7 = useMemo(() => daily.slice(-7), [daily]);
   const last7Total = last7.reduce((s, d) => s + d.total, 0);
+  const myRank = useMemo(() => ranking.findIndex(r => r.user_id === user?.id) + 1, [ranking, user]);
+  const myRow = ranking.find(r => r.user_id === user?.id);
+
+  const openDiscipline = async (name: string) => {
+    if (!user) return;
+    const cell = heat.find(h => h.discipline === name);
+    if (cell) setDiscDetail({ name, cells: cell });
+    const { data } = await supabase
+      .from("question_attempts")
+      .select("is_correct, created_at, selected_alternative, questions(statement, discipline, difficulty, correct_alternative, subtopic)")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    setDiscAttempts((data || []).filter((a: any) => a.questions?.discipline === name));
+  };
 
   return (
     <div className="container max-w-5xl py-12">
@@ -276,18 +318,26 @@ const Desempenho = () => {
               {byDiscipline.map(d => {
                 const pct = Math.round((d.correct / d.total) * 100);
                 return (
-                  <div key={d.name}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>{d.name}</span>
-                      <span className="text-muted-foreground">{d.correct}/{d.total} · {pct}%</span>
+                  <button
+                    key={d.name}
+                    onClick={() => openDiscipline(d.name)}
+                    className="w-full text-left p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-secondary/40 transition-all group"
+                  >
+                    <div className="flex justify-between text-sm mb-1.5 items-center">
+                      <span className="font-medium flex items-center gap-2">
+                        {d.name}
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </span>
+                      <span className="text-muted-foreground text-xs">{d.correct}/{d.total} · {pct}%</span>
                     </div>
                     <div className="h-2 rounded-full bg-secondary overflow-hidden">
                       <div className="h-full bg-gradient-primary" style={{ width: `${pct}%` }} />
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
+            <p className="text-xs text-muted-foreground mt-4">Clique em uma matéria para ver detalhes por dificuldade e tentativas recentes.</p>
           </Card>
         </TabsContent>
 
@@ -324,30 +374,201 @@ const Desempenho = () => {
         </TabsContent>
 
         <TabsContent value="ranking" className="mt-4">
-          <Card className="bg-card-elegant border-border p-6">
-            {ranking.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sem dados de ranking ainda.</p>
-            ) : (
-              <ul className="space-y-2">
-                {ranking.map((r, i) => {
-                  const isMe = r.user_id === user?.id;
-                  return (
-                    <li key={r.user_id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border ${isMe ? "border-primary bg-primary/10" : "border-border"}`}>
-                      <span className="font-mono w-8 text-center">
-                        {i < 3 ? <Medal className={`h-5 w-5 mx-auto ${i === 0 ? "text-gold" : i === 1 ? "text-muted-foreground" : "text-primary"}`} /> : i + 1}
-                      </span>
-                      <span className="flex-1 truncate">{isMe ? "Você" : r.name}</span>
-                      <span className="text-sm text-muted-foreground">{r.correct}/{r.total}</span>
-                      <span className="font-display text-lg text-gradient w-14 text-right">{r.pct}%</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Card>
+          {ranking.length === 0 ? (
+            <Card className="bg-card-elegant border-border p-10 text-center">
+              <Trophy className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">A arena está vazia. Responda questões para entrar na disputa.</p>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {/* Card "minha posição" */}
+              {myRow && (
+                <Card className="relative overflow-hidden border-primary/40 bg-gradient-to-br from-primary/15 via-card to-card p-5">
+                  <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-primary/20 blur-3xl" />
+                  <div className="relative flex items-center gap-4 flex-wrap">
+                    <div className="h-14 w-14 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-display text-xl shadow-glow">
+                      {initials(myRow.name)}
+                    </div>
+                    <div className="flex-1 min-w-[180px]">
+                      <div className="text-xs uppercase tracking-wider text-muted-foreground">Sua posição</div>
+                      <div className="font-display text-2xl flex items-baseline gap-2">
+                        #{myRank}
+                        <Badge variant="outline" className="border-primary/50 text-primary">{tierFor(myRank).label}</Badge>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-right">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Pontos</div>
+                        <div className="font-display text-xl text-gradient">{myRow.points}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Acerto</div>
+                        <div className="font-display text-xl">{myRow.pct}%</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Volume</div>
+                        <div className="font-display text-xl">{myRow.total}</div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Pódio */}
+              {ranking.length >= 3 && (
+                <div className="grid grid-cols-3 gap-3 items-end">
+                  {[1, 0, 2].map((idx) => {
+                    const r = ranking[idx];
+                    if (!r) return <div key={idx} />;
+                    const isFirst = idx === 0;
+                    const isSecond = idx === 1;
+                    const heightClass = isFirst ? "pt-8 pb-6" : isSecond ? "pt-6 pb-5" : "pt-5 pb-4";
+                    const ringClass = isFirst
+                      ? "ring-2 ring-gold shadow-[0_0_40px_-10px_hsl(var(--gold)/0.6)]"
+                      : isSecond
+                      ? "ring-2 ring-muted-foreground/40"
+                      : "ring-2 ring-amber-700/50";
+                    const medalColor = isFirst ? "text-gold" : isSecond ? "text-muted-foreground" : "text-amber-600";
+                    const Icon = isFirst ? Crown : Medal;
+                    return (
+                      <Card
+                        key={r.user_id}
+                        className={`bg-card-elegant border-border ${heightClass} px-4 text-center ${ringClass} ${r.user_id === user?.id ? "border-primary" : ""}`}
+                      >
+                        <Icon className={`h-7 w-7 mx-auto mb-2 ${medalColor}`} />
+                        <div className={`mx-auto rounded-full bg-secondary flex items-center justify-center font-display ${isFirst ? "h-12 w-12 text-base" : "h-10 w-10 text-sm"}`}>
+                          {initials(r.name)}
+                        </div>
+                        <div className="text-xs mt-2 truncate font-medium">{r.user_id === user?.id ? "Você" : r.name}</div>
+                        <div className="font-display text-lg text-gradient mt-1">{r.points} pts</div>
+                        <div className="text-[10px] text-muted-foreground">{r.pct}% · {r.total} q.</div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Lista geral */}
+              <Card className="bg-card-elegant border-border p-3">
+                <div className="flex items-center justify-between px-2 py-2 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border">
+                  <span>Posição</span>
+                  <div className="flex gap-6">
+                    <span className="w-14 text-right">Pontos</span>
+                    <span className="w-12 text-right">Acerto</span>
+                  </div>
+                </div>
+                <ul className="divide-y divide-border">
+                  {ranking.map((r, i) => {
+                    const rank = i + 1;
+                    const isMe = r.user_id === user?.id;
+                    const t = tierFor(rank);
+                    return (
+                      <li key={r.user_id}
+                        className={`flex items-center gap-3 px-2 py-2.5 ${isMe ? "bg-primary/10 rounded-md -mx-1 px-3 border-l-2 border-primary" : ""}`}>
+                        <span className="w-10 flex justify-center">
+                          {rank === 1 && <Crown className="h-5 w-5 text-gold" />}
+                          {rank === 2 && <Medal className="h-5 w-5 text-muted-foreground" />}
+                          {rank === 3 && <Medal className="h-5 w-5 text-amber-600" />}
+                          {rank > 3 && (
+                            <span className={`font-mono text-sm ${rank <= 10 ? "text-primary font-bold" : "text-muted-foreground"}`}>
+                              #{rank}
+                            </span>
+                          )}
+                        </span>
+                        <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-xs font-display shrink-0">
+                          {initials(r.name)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{isMe ? "Você" : r.name}</div>
+                          <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                            <span>{r.total} questões</span>
+                            {rank <= 50 && (
+                              <Badge variant="outline" className={`text-[9px] py-0 px-1.5 h-3.5 ${
+                                t.tone === "diamond" ? "border-primary/60 text-primary" :
+                                t.tone === "gold" ? "border-gold/60 text-gold" :
+                                t.tone === "primary" ? "border-primary/40 text-primary" :
+                                t.tone === "silver" ? "border-muted-foreground/40 text-muted-foreground" :
+                                "border-amber-700/50 text-amber-600"
+                              }`}>
+                                {t.label}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-6 items-center">
+                          <span className="font-display text-sm text-gradient w-14 text-right">{r.points}</span>
+                          <span className="text-xs text-muted-foreground w-12 text-right">{r.pct}%</span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Card>
+
+              <div className="text-xs text-muted-foreground text-center px-4">
+                <Zap className="h-3 w-3 inline mr-1 text-gold" />
+                Pontos = acertos ponderados pela dificuldade (Fácil 1 · Médio 2 · Difícil 3). Resolver mais e mais difícil sobe mais rápido.
+              </div>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
+
+      {/* Drilldown por matéria */}
+      <Dialog open={!!discDetail} onOpenChange={(o) => !o && setDiscDetail(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              {discDetail?.name}
+            </DialogTitle>
+          </DialogHeader>
+          {discDetail && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-2">
+                {(["easy", "medium", "hard"] as const).map(d => {
+                  const cell = discDetail.cells[d];
+                  const pct = cell.t ? Math.round((cell.c / cell.t) * 100) : 0;
+                  return (
+                    <div key={d} className="rounded-lg border border-border p-3 text-center">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{DIFF_LABEL[d]}</div>
+                      <div className="font-display text-2xl mt-1">{cell.t ? `${pct}%` : "—"}</div>
+                      <div className="text-[10px] text-muted-foreground">{cell.c}/{cell.t}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Tentativas recentes</div>
+                {discAttempts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Sem tentativas registradas.</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {discAttempts.slice(0, 30).map((a, i) => (
+                      <li key={i} className="flex items-start gap-2 p-2 rounded border border-border text-xs">
+                        {a.is_correct ? (
+                          <span className="h-5 w-5 rounded-full bg-success/20 text-success flex items-center justify-center shrink-0">✓</span>
+                        ) : (
+                          <span className="h-5 w-5 rounded-full bg-destructive/20 text-destructive flex items-center justify-center shrink-0">✗</span>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="line-clamp-2">{a.questions?.statement}</div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">
+                            {a.questions?.subtopic && <span className="mr-2">{a.questions.subtopic}</span>}
+                            <span className="capitalize">{a.questions?.difficulty}</span>
+                            <span className="mx-1">·</span>
+                            {new Date(a.created_at).toLocaleDateString("pt-BR")}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

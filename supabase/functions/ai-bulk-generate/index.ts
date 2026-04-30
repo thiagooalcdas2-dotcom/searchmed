@@ -26,6 +26,25 @@ const FORMATS = ["multiple_choice", "open_ended"] as const;
 
 const ORIGIN_FOR_YEAR = (year: string) => year === "residencia" ? "enamed" : "internal";
 
+// Embaralha posições das alternativas para diversificar a letra correta.
+// Recebe { alternatives: [{key,text}], correct_alternative: "B" } e devolve nova versão com ordem aleatória.
+function shuffleAlternatives(q: any): any {
+  const alts = Array.isArray(q.alternatives) ? q.alternatives : [];
+  if (alts.length < 2) return q;
+  const correctText = alts.find((a: any) => a.key === q.correct_alternative)?.text;
+  if (!correctText) return q;
+  const texts = alts.map((a: any) => a.text);
+  // Fisher–Yates
+  for (let i = texts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [texts[i], texts[j]] = [texts[j], texts[i]];
+  }
+  const letters = ["A", "B", "C", "D", "E", "F"];
+  const newAlts = texts.map((text: string, i: number) => ({ key: letters[i], text }));
+  const newCorrect = newAlts.find((a: any) => a.text === correctText)?.key || q.correct_alternative;
+  return { ...q, alternatives: newAlts, correct_alternative: newCorrect };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -134,10 +153,13 @@ Schema JSON:
       const courseYear = ["ano_1","ano_2","ano_3","ano_4","ano_5","ano_6","residencia","geral"].includes(q.course_year) ? q.course_year : planned.year;
       const difficulty = ["easy","medium","hard"].includes(q.difficulty) ? q.difficulty : planned.difficulty;
 
+      // Diversifica letra correta nas múltipla escolha
+      const finalQ = isOpen ? q : shuffleAlternatives(q);
+
       const { error } = await admin.from("questions").insert({
-        statement: q.statement,
-        alternatives: isOpen ? [] : (q.alternatives || []),
-        correct_alternative: isOpen ? "" : (q.correct_alternative || ""),
+        statement: finalQ.statement,
+        alternatives: isOpen ? [] : (finalQ.alternatives || []),
+        correct_alternative: isOpen ? "" : (finalQ.correct_alternative || ""),
         explanation: q.explanation || "",
         expected_answer: isOpen ? (q.expected_answer || "") : null,
         discipline: q.discipline || planned.discipline,
