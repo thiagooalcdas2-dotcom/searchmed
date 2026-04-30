@@ -15,17 +15,36 @@ const Banco = () => {
   const [index, setIndex] = useState(0);
 
   const load = async () => {
-    let q = supabase.from("questions").select("*").eq("review_status", "approved").limit(50);
+    let q = supabase.from("questions").select("*").eq("review_status", "approved").limit(120);
     if (filter.year !== "geral") q = q.eq("course_year", filter.year as any);
     if (filter.difficulty !== "all") q = q.eq("difficulty", filter.difficulty as any);
     if (filter.discipline !== "all") q = q.eq("discipline", filter.discipline);
     const { data, error } = await q;
     if (error) { toast.error(error.message); return; }
-    setQuestions((data || []) as any);
+    // Diversifica: embaralha e prioriza as que o usuário menos respondeu
+    let pool = (data || []) as any[];
+    if (user && pool.length > 0) {
+      const ids = pool.map((p: any) => p.id);
+      const { data: att } = await supabase
+        .from("question_attempts")
+        .select("question_id")
+        .eq("user_id", user.id)
+        .in("question_id", ids);
+      const seen = new Map<string, number>();
+      (att || []).forEach((a: any) => seen.set(a.question_id, (seen.get(a.question_id) || 0) + 1));
+      pool = pool
+        .map(p => ({ p, s: (seen.get(p.id) || 0), r: Math.random() }))
+        .sort((a, b) => a.s - b.s || a.r - b.r)
+        .map(x => x.p)
+        .slice(0, 50);
+    } else {
+      pool = pool.sort(() => Math.random() - 0.5).slice(0, 50);
+    }
+    setQuestions(pool as any);
     setIndex(0);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [filter.year, filter.discipline, filter.difficulty]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [filter.year, filter.discipline, filter.difficulty, user?.id]);
 
   const current = questions[index];
 
