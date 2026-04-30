@@ -180,7 +180,7 @@ const Enamed = () => {
                 <div className="text-xs text-muted-foreground mb-2">
                   IA · confiança {(g._meta?.confidence * 100).toFixed(0)}% · status: pendente de revisão
                 </div>
-                <QuestionCard q={g as any} />
+                <QuestionCard key={g.id} q={g as any} />
               </div>
             ))}
           </div>
@@ -207,7 +207,7 @@ const Enamed = () => {
             </Button>
             <p className="text-xs text-muted-foreground">Resultado fica marcado como <span className="text-destructive">IA — não oficial</span>.</p>
           </Card>
-          {transformed && <div className="mt-6"><QuestionCard q={transformed as any} /></div>}
+          {transformed && <div className="mt-6"><QuestionCard key={transformed.id} q={transformed as any} /></div>}
         </TabsContent>
       </Tabs>
     </div>
