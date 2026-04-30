@@ -4,18 +4,35 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Medal, TrendingUp, Flame, Calendar, ChevronRight } from "lucide-react";
+import { Trophy, Medal, TrendingUp, Flame, Calendar, ChevronRight, Crown, Award, Zap, Target } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area,
 } from "recharts";
 
 type DiscStat = { name: string; correct: number; total: number };
-type RankRow = { user_id: string; name: string; total: number; correct: number; pct: number };
+type RankRow = { user_id: string; name: string; total: number; correct: number; pct: number; points: number; tier: string };
 type DailyPoint = { date: string; label: string; total: number; correct: number; pct: number };
 type HeatCell = { discipline: string; easy: { c: number; t: number }; medium: { c: number; t: number }; hard: { c: number; t: number } };
 type SimRow = { id: string; title: string; total_questions: number; correct_count: number | null; score: number | null; finished_at: string | null; started_at: string };
 
 const DIFF_LABEL: Record<string, string> = { easy: "Fácil", medium: "Médio", hard: "Difícil" };
+
+// Pontuação: cada acerto vale por dificuldade. Erro vale 0. Volume importa, mas % também.
+// pontos = easy*1 + medium*2 + hard*3 (apenas em acertos), com bônus de consistência.
+function tierFor(rank: number): { label: string; tone: string } {
+  if (rank === 1) return { label: "Diamante", tone: "diamond" };
+  if (rank <= 3) return { label: "Pódio", tone: "gold" };
+  if (rank <= 10) return { label: "Top 10", tone: "primary" };
+  if (rank <= 25) return { label: "Top 25", tone: "silver" };
+  if (rank <= 50) return { label: "Top 50", tone: "bronze" };
+  return { label: "Competidor", tone: "muted" };
+}
+
+function initials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join("") || "?";
+}
 
 function pctColor(pct: number) {
   if (pct >= 80) return "bg-success/80";
@@ -34,13 +51,15 @@ const Desempenho = () => {
   const [heat, setHeat] = useState<HeatCell[]>([]);
   const [streak, setStreak] = useState(0);
   const [sims, setSims] = useState<SimRow[]>([]);
+  const [discDetail, setDiscDetail] = useState<{ name: string; cells: HeatCell } | null>(null);
+  const [discAttempts, setDiscAttempts] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
       const { data } = await supabase
         .from("question_attempts")
-        .select("is_correct, created_at, questions(discipline, difficulty)")
+        .select("is_correct, created_at, question_id, questions(discipline, difficulty)")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true });
       const att = (data || []) as any[];
@@ -116,16 +135,21 @@ const Desempenho = () => {
       // Ranking
       const { data: allAtt } = await supabase
         .from("question_attempts")
-        .select("user_id, is_correct");
+        .select("user_id, is_correct, questions(difficulty)");
       const { data: profs } = await supabase.from("profiles").select("id, full_name");
       const nameOf = new Map<string, string>((profs || []).map((p: any) => [p.id, p.full_name || "Usuário"]));
-      const agg = new Map<string, { t: number; c: number }>();
+      const agg = new Map<string, { t: number; c: number; points: number }>();
       (allAtt || []).forEach((a: any) => {
-        const e = agg.get(a.user_id) || { t: 0, c: 0 };
-        e.t += 1; if (a.is_correct) e.c += 1;
+        const e = agg.get(a.user_id) || { t: 0, c: 0, points: 0 };
+        e.t += 1;
+        if (a.is_correct) {
+          e.c += 1;
+          const diff = a.questions?.difficulty || "medium";
+          e.points += diff === "hard" ? 3 : diff === "easy" ? 1 : 2;
+        }
         agg.set(a.user_id, e);
       });
-      const rows: RankRow[] = [...agg.entries()]
+      const ranked = [...agg.entries()]
         .filter(([, v]) => v.t >= 1)
         .map(([uid, v]) => ({
           user_id: uid,
@@ -133,15 +157,33 @@ const Desempenho = () => {
           total: v.t,
           correct: v.c,
           pct: Math.round((v.c / v.t) * 100),
+          points: v.points,
         }))
-        .sort((a, b) => b.pct - a.pct || b.total - a.total)
-        .slice(0, 50);
+        // Ordena por pontos (volume × dificuldade × acerto) — combate a "100% com 1 questão"
+        .sort((a, b) => b.points - a.points || b.pct - a.pct || b.total - a.total)
+        .slice(0, 100);
+      const rows: RankRow[] = ranked.map((r, i) => ({ ...r, tier: tierFor(i + 1).label }));
       setRanking(rows);
     })();
   }, [user]);
 
   const last7 = useMemo(() => daily.slice(-7), [daily]);
   const last7Total = last7.reduce((s, d) => s + d.total, 0);
+  const myRank = useMemo(() => ranking.findIndex(r => r.user_id === user?.id) + 1, [ranking, user]);
+  const myRow = ranking.find(r => r.user_id === user?.id);
+
+  const openDiscipline = async (name: string) => {
+    if (!user) return;
+    const cell = heat.find(h => h.discipline === name);
+    if (cell) setDiscDetail({ name, cells: cell });
+    const { data } = await supabase
+      .from("question_attempts")
+      .select("is_correct, created_at, selected_alternative, questions(statement, discipline, difficulty, correct_alternative, subtopic)")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    setDiscAttempts((data || []).filter((a: any) => a.questions?.discipline === name));
+  };
 
   return (
     <div className="container max-w-5xl py-12">
