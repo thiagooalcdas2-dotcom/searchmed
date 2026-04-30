@@ -18,6 +18,22 @@ const ORIGIN_LABELS: Record<string, string> = {
   internal: "Banco interno",
 };
 
+function shuffleAlternatives(q: any): any {
+  const alts = Array.isArray(q.alternatives) ? q.alternatives : [];
+  if (alts.length < 2) return q;
+  const correctText = alts.find((a: any) => a.key === q.correct_alternative)?.text;
+  if (!correctText) return q;
+  const texts = alts.map((a: any) => a.text);
+  for (let i = texts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [texts[i], texts[j]] = [texts[j], texts[i]];
+  }
+  const letters = ["A", "B", "C", "D", "E", "F"];
+  const newAlts = texts.map((text: string, i: number) => ({ key: letters[i], text }));
+  const newCorrect = newAlts.find((a: any) => a.text === correctText)?.key || q.correct_alternative;
+  return { ...q, alternatives: newAlts, correct_alternative: newCorrect };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -130,7 +146,8 @@ Mesmo formato JSON do schema acima, "questions" como array com 1 item.`;
 
     const inserted: any[] = [];
     for (const v of validated) {
-      const { q, confidence, needsReview } = v;
+      const { q: rawQ, confidence, needsReview } = v;
+      const q = shuffleAlternatives(rawQ);
       if (!q.statement || !q.alternatives) continue;
       const { data, error } = await admin.from("questions").insert({
         statement: q.statement,
