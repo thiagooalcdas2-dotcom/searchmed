@@ -1,0 +1,1 @@
+UPDATE public.questions SET review_status = 'approved' WHERE review_status = 'pending_review' AND ai_generated = true;
