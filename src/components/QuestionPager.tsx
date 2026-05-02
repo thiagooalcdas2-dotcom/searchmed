@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { QuestionCard, QuestionData, AnsweredState } from "@/components/QuestionCard";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Mostra UMA questão por vez com painel lateral numerado para navegação direta.
@@ -22,6 +23,46 @@ export const QuestionPager = ({
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, AnsweredState>>({});
 
+  // Carrega tentativas anteriores do usuário para travar respostas já confirmadas
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id;
+      if (!uid || !questions?.length) return;
+      const ids = questions.map((q) => q.id);
+      const { data } = await supabase
+        .from("question_attempts")
+        .select("question_id, selected_alternative, is_correct, created_at")
+        .eq("user_id", uid)
+        .in("question_id", ids)
+        .order("created_at", { ascending: true });
+      if (cancelled || !data) return;
+      const map: Record<string, AnsweredState> = {};
+      for (const row of data as any[]) {
+        // mantém a primeira tentativa (resposta inicial bloqueada)
+        if (!map[row.question_id]) {
+          const q = questions.find((x) => x.id === row.question_id);
+          const isOpen = q?.question_format === "open_ended";
+          map[row.question_id] = {
+            selected: row.selected_alternative,
+            correct: !!row.is_correct,
+            openAnswer: isOpen ? row.selected_alternative : undefined,
+            grade: isOpen
+              ? {
+                  verdict: row.is_correct ? "correta" : "incorreta",
+                  score: row.is_correct ? 1 : 0,
+                  feedback: "Resposta enviada anteriormente. Veja o gabarito esperado abaixo.",
+                }
+              : null,
+          };
+        }
+      }
+      setAnswers((prev) => ({ ...map, ...prev }));
+    })();
+    return () => { cancelled = true; };
+  }, [questions]);
+
   if (!questions || questions.length === 0) {
     return <div className="text-center py-16 text-muted-foreground text-sm">{emptyMessage}</div>;
   }
@@ -29,11 +70,33 @@ export const QuestionPager = ({
   const safeIndex = Math.min(index, questions.length - 1);
   const current = questions[safeIndex];
 
-  const handle = (selected: string, correct: boolean, extra?: { openAnswer?: string; grade?: any }) => {
+  const handle = async (selected: string, correct: boolean, extra?: { openAnswer?: string; grade?: any }) => {
     setAnswers((p) => ({
       ...p,
       [current.id]: { selected, correct, openAnswer: extra?.openAnswer, grade: extra?.grade ?? null },
     }));
+    // Persiste a tentativa no banco para travar a resposta entre sessões/recargas.
+    // Só insere se ainda não houver tentativa registrada para esta questão.
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id;
+      if (uid) {
+        const { data: existing } = await supabase
+          .from("question_attempts")
+          .select("id")
+          .eq("user_id", uid)
+          .eq("question_id", current.id)
+          .limit(1);
+        if (!existing || existing.length === 0) {
+          await supabase.from("question_attempts").insert({
+            user_id: uid,
+            question_id: current.id,
+            selected_alternative: selected.slice(0, 500),
+            is_correct: correct,
+          });
+        }
+      }
+    } catch { /* silencioso */ }
     onAnswer?.(current, selected, correct, extra);
   };
 

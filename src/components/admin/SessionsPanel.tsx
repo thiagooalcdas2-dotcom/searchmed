@@ -201,8 +201,10 @@ export const SessionsPanel = () => {
     );
   };
 
-  // Histórico = todas as sessões registradas
-  const history = sessions.filter((s) => matchesSearch(s.user_id, s));
+  // Histórico = todas as sessões registradas (mais recentes primeiro pelo login)
+  const history = sessions
+    .filter((s) => matchesSearch(s.user_id, s))
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   // Ativas = 1 linha por conta cadastrada (profile), com a sessão ativa mais recente (se existir)
   const activeSessionsByUser = new Map<string, SessionRow>();
