@@ -45,6 +45,19 @@ function shuffleAlternatives(q: any): any {
   return { ...q, alternatives: newAlts, correct_alternative: newCorrect };
 }
 
+// Detecta se a alternativa correta é significativamente mais longa que as demais.
+// Retorna true se houver viés de comprimento (correct > 1.4× média das outras OU > 30 chars a mais).
+function hasLengthBias(q: any): boolean {
+  const alts = Array.isArray(q.alternatives) ? q.alternatives : [];
+  if (alts.length < 2) return false;
+  const correct = alts.find((a: any) => a.key === q.correct_alternative);
+  if (!correct) return false;
+  const others = alts.filter((a: any) => a.key !== q.correct_alternative);
+  const correctLen = (correct.text || "").length;
+  const avgOthers = others.reduce((s: number, a: any) => s + (a.text || "").length, 0) / Math.max(others.length, 1);
+  return correctLen > avgOthers * 1.4 && correctLen - avgOthers > 25;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -89,11 +102,16 @@ serve(async (req) => {
     }
 
     const systemPrompt = `Você é um professor de medicina criando questões originais para estudo.
-REGRAS:
+REGRAS RÍGIDAS:
 - Conteúdo cientificamente correto e atualizado (diretrizes brasileiras quando aplicável).
 - Questões ORIGINAIS (não copie nada de provas reais).
 - Para múltipla escolha: 5 alternativas (A-E), apenas 1 correta, distratores plausíveis.
-- Alternativas com tamanhos parecidos; varie a posição da correta.
+- COMPRIMENTO DAS ALTERNATIVAS: TODAS as 5 alternativas (correta E distratores) devem ter
+  comprimento muito parecido — diferença máxima de 15% entre a mais curta e a mais longa.
+  NUNCA faça a alternativa correta mais longa ou mais detalhada que as demais. Se a correta
+  precisa de qualificadores ("desde que", "exceto se"), aplique qualificadores equivalentes
+  nos distratores para manter paralelismo gramatical e tamanho.
+- VARIE A POSIÇÃO da alternativa correta entre A, B, C, D, E (não concentre em uma letra).
 - Para dissertativa: forneça gabarito esperado (3-6 linhas) cobrindo os pontos-chave.
 - Idioma: português brasileiro. Responda APENAS JSON válido, sem markdown.`;
 
@@ -155,6 +173,7 @@ Schema JSON:
 
       // Diversifica letra correta nas múltipla escolha
       const finalQ = isOpen ? q : shuffleAlternatives(q);
+      const biased = !isOpen && hasLengthBias(finalQ);
 
       const { error } = await admin.from("questions").insert({
         statement: finalQ.statement,
@@ -171,7 +190,8 @@ Schema JSON:
         is_ai_unofficial: true,
         ai_generated: true,
         ai_confidence: 0.7,
-        review_status: "approved", // entra direto, mas sempre marcada como IA — não oficial
+        // Se a correta é claramente mais longa que as demais, manda para revisão em vez de aprovar
+        review_status: biased ? "pending_review" : "approved",
         tags: ["ia", "bulk-seed"],
         created_by: userRes.user.id,
       });
