@@ -82,8 +82,12 @@ REGRAS RÍGIDAS:
 - Apenas UMA alternativa correta. Distratores plausíveis (não absurdos).
 - Comentário deve explicar o raciocínio clínico e por que cada alternativa errada está errada brevemente.
 - Conteúdo cientificamente correto e atualizado.
-- CONTROLE DE TAMANHO: as alternativas devem ter comprimentos parecidos. NÃO faça a correta significativamente mais longa que as demais. Mantenha paralelismo gramatical.
-- VARIE A POSIÇÃO da alternativa correta (não use sempre a mesma letra).
+- CONTROLE DE TAMANHO (CRÍTICO): TODAS as 5 alternativas devem ter comprimento muito parecido —
+  diferença máxima de 15% entre a mais curta e a mais longa. NUNCA faça a alternativa correta
+  mais longa ou mais detalhada que as demais. Se a correta precisar de qualificadores
+  ("desde que", "exceto se"), aplique qualificadores equivalentes nos distratores para manter
+  paralelismo gramatical e tamanho equivalente.
+- VARIE A POSIÇÃO da alternativa correta entre A, B, C, D, E.
 - Estilo da banca alvo: ${originLabel}.
 - Idioma: português brasileiro.
 - Responda APENAS JSON válido conforme o schema solicitado, sem markdown.`;
