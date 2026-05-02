@@ -46,9 +46,7 @@ const Banco = () => {
 
   const onAnswer = async (q: QuestionData, selected: string, correct: boolean) => {
     if (!user) return;
-    await supabase.from("question_attempts").insert({
-      user_id: user.id, question_id: q.id, selected_alternative: selected, is_correct: correct,
-    });
+    // A persistência da tentativa é feita pelo QuestionPager (idempotente).
     if (!correct) {
       await enqueueReviewCard(user.id, q.id, "wrong_answer");
     }
