@@ -70,11 +70,33 @@ export const QuestionPager = ({
   const safeIndex = Math.min(index, questions.length - 1);
   const current = questions[safeIndex];
 
-  const handle = (selected: string, correct: boolean, extra?: { openAnswer?: string; grade?: any }) => {
+  const handle = async (selected: string, correct: boolean, extra?: { openAnswer?: string; grade?: any }) => {
     setAnswers((p) => ({
       ...p,
       [current.id]: { selected, correct, openAnswer: extra?.openAnswer, grade: extra?.grade ?? null },
     }));
+    // Persiste a tentativa no banco para travar a resposta entre sessões/recargas.
+    // Só insere se ainda não houver tentativa registrada para esta questão.
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id;
+      if (uid) {
+        const { data: existing } = await supabase
+          .from("question_attempts")
+          .select("id")
+          .eq("user_id", uid)
+          .eq("question_id", current.id)
+          .limit(1);
+        if (!existing || existing.length === 0) {
+          await supabase.from("question_attempts").insert({
+            user_id: uid,
+            question_id: current.id,
+            selected_alternative: selected.slice(0, 500),
+            is_correct: correct,
+          });
+        }
+      }
+    } catch { /* silencioso */ }
     onAnswer?.(current, selected, correct, extra);
   };
 
