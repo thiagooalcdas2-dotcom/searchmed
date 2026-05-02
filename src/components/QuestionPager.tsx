@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { QuestionCard, QuestionData } from "@/components/QuestionCard";
+import { QuestionCard, QuestionData, AnsweredState } from "@/components/QuestionCard";
 
 /**
  * Mostra UMA questão por vez com painel lateral numerado para navegação direta.
@@ -15,12 +15,12 @@ export const QuestionPager = ({
   header,
 }: {
   questions: QuestionData[];
-  onAnswer?: (q: QuestionData, selected: string, correct: boolean) => void;
+  onAnswer?: (q: QuestionData, selected: string, correct: boolean, extra?: { openAnswer?: string; grade?: any }) => void;
   emptyMessage?: string;
   header?: React.ReactNode;
 }) => {
   const [index, setIndex] = useState(0);
-  const [statuses, setStatuses] = useState<Record<string, "correct" | "wrong">>({});
+  const [answers, setAnswers] = useState<Record<string, AnsweredState>>({});
 
   if (!questions || questions.length === 0) {
     return <div className="text-center py-16 text-muted-foreground text-sm">{emptyMessage}</div>;
@@ -29,9 +29,12 @@ export const QuestionPager = ({
   const safeIndex = Math.min(index, questions.length - 1);
   const current = questions[safeIndex];
 
-  const handle = (selected: string, correct: boolean) => {
-    setStatuses((p) => ({ ...p, [current.id]: correct ? "correct" : "wrong" }));
-    onAnswer?.(current, selected, correct);
+  const handle = (selected: string, correct: boolean, extra?: { openAnswer?: string; grade?: any }) => {
+    setAnswers((p) => ({
+      ...p,
+      [current.id]: { selected, correct, openAnswer: extra?.openAnswer, grade: extra?.grade ?? null },
+    }));
+    onAnswer?.(current, selected, correct, extra);
   };
 
   return (
@@ -41,7 +44,7 @@ export const QuestionPager = ({
         <div className="text-xs text-muted-foreground mb-3">
           Questão {safeIndex + 1} de {questions.length}
         </div>
-        <QuestionCard key={current.id} q={current} onAnswer={handle} />
+        <QuestionCard key={current.id} q={current} onAnswer={handle} answered={answers[current.id] || null} />
         <div className="flex justify-between mt-6">
           <Button variant="outline" disabled={safeIndex === 0} onClick={() => setIndex((i) => Math.max(0, i - 1))}>
             <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
@@ -58,7 +61,8 @@ export const QuestionPager = ({
         <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">Navegação</div>
         <div className="grid grid-cols-8 lg:grid-cols-5 gap-1.5">
           {questions.map((q, i) => {
-            const st = statuses[q.id];
+            const a = answers[q.id];
+            const st = a ? (a.correct ? "correct" : "wrong") : undefined;
             const isCurrent = i === safeIndex;
             return (
               <button

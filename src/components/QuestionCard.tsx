@@ -32,16 +32,25 @@ const ORIGIN_LABEL: Record<string, string> = {
   residencia_sp_usp: "SP · USP", residencia_sp_santa_casa: "SP · Santa Casa", residencia_sp_outros: "SP · Outros",
 };
 
-export const QuestionCard = ({ q, onAnswer, mode = "study" }: {
+export type AnsweredState = {
+  selected: string;
+  correct: boolean;
+  openAnswer?: string;
+  grade?: { verdict: string; score: number; feedback: string } | null;
+};
+
+export const QuestionCard = ({ q, onAnswer, mode = "study", answered }: {
   q: QuestionData;
-  onAnswer?: (selected: string, correct: boolean) => void;
+  onAnswer?: (selected: string, correct: boolean, extra?: { openAnswer?: string; grade?: any }) => void;
   mode?: "study" | "exam";
+  /** Se fornecido, a questão é renderizada como já respondida (não pode mudar). */
+  answered?: AnsweredState | null;
 }) => {
-  const [selected, setSelected] = useState<string | null>(null);
-  const [revealed, setRevealed] = useState(false);
-  const [openAnswer, setOpenAnswer] = useState("");
+  const [selected, setSelected] = useState<string | null>(answered?.selected ?? null);
+  const [revealed, setRevealed] = useState<boolean>(!!answered);
+  const [openAnswer, setOpenAnswer] = useState<string>(answered?.openAnswer ?? "");
   const [grading, setGrading] = useState(false);
-  const [grade, setGrade] = useState<{ verdict: string; score: number; feedback: string } | null>(null);
+  const [grade, setGrade] = useState<{ verdict: string; score: number; feedback: string } | null>(answered?.grade ?? null);
 
   const isOpen = q.question_format === "open_ended";
 
@@ -51,7 +60,7 @@ export const QuestionCard = ({ q, onAnswer, mode = "study" }: {
   };
 
   const confirm = () => {
-    if (!selected) return;
+    if (!selected || revealed) return;
     setRevealed(true);
     onAnswer?.(selected, selected === q.correct_alternative);
   };
@@ -67,7 +76,7 @@ export const QuestionCard = ({ q, onAnswer, mode = "study" }: {
       if ((data as any)?.error) throw new Error((data as any).error);
       setGrade(data as any);
       setRevealed(true);
-      onAnswer?.(openAnswer.slice(0, 500), (data as any).verdict === "correta");
+      onAnswer?.(openAnswer.slice(0, 500), (data as any).verdict === "correta", { openAnswer, grade: data });
     } catch (e: any) {
       toast.error(e.message || "Falha ao avaliar resposta");
     } finally {
