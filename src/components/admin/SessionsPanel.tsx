@@ -126,7 +126,26 @@ export const SessionsPanel = () => {
       const res = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`);
       const data = await res.json();
       if (data.error) setIpError(data.reason || "Falha ao localizar IP");
-      else setIpInfo(data);
+      else {
+        // Enriquecer com reverse geocoding (Nominatim) para tentar bairro/rua aproximados
+        let enriched: any = { ...data };
+        if (data.latitude && data.longitude) {
+          try {
+            const r = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${data.latitude}&lon=${data.longitude}&zoom=18&addressdetails=1&accept-language=pt-BR`,
+              { headers: { "Accept": "application/json" } }
+            );
+            if (r.ok) {
+              const geo = await r.json();
+              const a = geo.address || {};
+              enriched._neighbourhood = a.neighbourhood || a.suburb || a.city_district || a.quarter || null;
+              enriched._road = a.road || a.pedestrian || a.residential || null;
+              enriched._display = geo.display_name || null;
+            }
+          } catch { /* silencioso */ }
+        }
+        setIpInfo(enriched);
+      }
     } catch (e: any) {
       setIpError(e?.message || "Falha ao consultar localização");
     } finally {
@@ -549,6 +568,8 @@ export const SessionsPanel = () => {
                 {ipInfo.country_name && (<><span className="text-muted-foreground">País</span><span>{ipInfo.country_name} {ipInfo.country_code ? `(${ipInfo.country_code})` : ""}</span></>)}
                 {ipInfo.region && (<><span className="text-muted-foreground">Estado</span><span>{ipInfo.region} {ipInfo.region_code ? `(${ipInfo.region_code})` : ""}</span></>)}
                 {ipInfo.city && (<><span className="text-muted-foreground">Cidade</span><span>{ipInfo.city}</span></>)}
+                {ipInfo._neighbourhood && (<><span className="text-muted-foreground">Bairro (aprox.)</span><span>{ipInfo._neighbourhood}</span></>)}
+                {ipInfo._road && (<><span className="text-muted-foreground">Rua (aprox.)</span><span>{ipInfo._road}</span></>)}
                 {ipInfo.postal && (<><span className="text-muted-foreground">CEP</span><span className="font-mono">{ipInfo.postal}</span></>)}
                 {ipInfo.timezone && (<><span className="text-muted-foreground">Fuso</span><span>{ipInfo.timezone} {ipInfo.utc_offset ? `(UTC ${ipInfo.utc_offset})` : ""}</span></>)}
                 {(ipInfo.latitude && ipInfo.longitude) && (
@@ -563,11 +584,18 @@ export const SessionsPanel = () => {
                     </a>
                   </>
                 )}
+                {ipInfo._display && (
+                  <>
+                    <span className="text-muted-foreground">Endereço aprox.</span>
+                    <span className="text-xs">{ipInfo._display}</span>
+                  </>
+                )}
               </div>
             )}
-            <p className="text-[11px] text-muted-foreground pt-2">
-              A localização vem da geolocalização do IP (ipapi.co). Não inclui rua/número exatos — provedores só permitem detectar até cidade/bairro/CEP, e pode variar conforme a operadora.
-            </p>
+            <div className="text-[11px] text-muted-foreground pt-2 space-y-1 border-t pt-2 mt-2">
+              <p><strong>Sobre a precisão:</strong> a localização é estimada a partir do IP (ipapi.co) e refinada com geocodificação reversa (OpenStreetMap/Nominatim) usando as coordenadas aproximadas do provedor.</p>
+              <p>Bairro e rua exibidos são <strong>aproximações</strong> baseadas no ponto central da rede do provedor — <strong>não correspondem ao endereço real do usuário</strong>. A precisão típica varia de poucos quilômetros (banda larga fixa) a dezenas/centenas de km (operadoras móveis, VPN, proxy). Número da casa nunca é identificável por IP.</p>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
