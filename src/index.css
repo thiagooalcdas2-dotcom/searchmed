@@ -33,6 +33,10 @@
 
     --gold: 42 70% 65%;
 
+    --electric: 210 100% 60%;
+    --electric-foreground: 0 0% 100%;
+    --electric-glow: 200 100% 70%;
+
     --destructive: 358 75% 58%;
     --destructive-foreground: 0 0% 100%;
 
@@ -52,6 +56,7 @@
     --shadow-elegant: 0 20px 60px -20px hsl(174 80% 30% / 0.35);
     --shadow-glow: 0 0 40px hsl(var(--primary-glow) / 0.35);
     --shadow-soft: 0 4px 20px hsl(200 50% 2% / 0.6);
+    --shadow-electric: 0 8px 30px -8px hsl(var(--electric) / 0.55), 0 0 24px hsl(var(--electric-glow) / 0.35);
 
     --sidebar-background: 200 32% 6%;
     --sidebar-foreground: 180 20% 80%;
@@ -98,4 +103,7 @@
   .shadow-soft { box-shadow: var(--shadow-soft); }
   .text-gradient { background: var(--gradient-primary); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .ring-glow { box-shadow: 0 0 0 1px hsl(var(--primary) / 0.3), 0 0 30px hsl(var(--primary) / 0.25); }
+  .shadow-electric { box-shadow: var(--shadow-electric); }
+  .bg-electric { background-color: hsl(var(--electric)); }
+  .hover\:bg-electric-glow:hover { background-color: hsl(var(--electric-glow)); }
 }
