@@ -524,6 +524,53 @@ export const SessionsPanel = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!ipTarget} onOpenChange={(o) => { if (!o) { setIpTarget(null); setIpInfo(null); setIpError(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Localização do IP</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-base">{ipTarget}</span>
+              {ipTarget && (
+                <button type="button" onClick={() => copy(ipTarget, "IP")} className="text-muted-foreground hover:text-foreground">
+                  <Copy className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            {ipLoading && <div className="text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Buscando localização…</div>}
+            {ipError && <div className="text-destructive">{ipError}</div>}
+            {ipInfo && (
+              <div className="grid grid-cols-[120px_1fr] gap-x-3 gap-y-1.5 mt-2">
+                {ipInfo.ip && (<><span className="text-muted-foreground">IP</span><span className="font-mono">{ipInfo.ip}</span></>)}
+                {ipInfo.org && (<><span className="text-muted-foreground">Provedor</span><span>{ipInfo.org}</span></>)}
+                {ipInfo.asn && (<><span className="text-muted-foreground">ASN</span><span className="font-mono">{ipInfo.asn}</span></>)}
+                {ipInfo.country_name && (<><span className="text-muted-foreground">País</span><span>{ipInfo.country_name} {ipInfo.country_code ? `(${ipInfo.country_code})` : ""}</span></>)}
+                {ipInfo.region && (<><span className="text-muted-foreground">Estado</span><span>{ipInfo.region} {ipInfo.region_code ? `(${ipInfo.region_code})` : ""}</span></>)}
+                {ipInfo.city && (<><span className="text-muted-foreground">Cidade</span><span>{ipInfo.city}</span></>)}
+                {ipInfo.postal && (<><span className="text-muted-foreground">CEP</span><span className="font-mono">{ipInfo.postal}</span></>)}
+                {ipInfo.timezone && (<><span className="text-muted-foreground">Fuso</span><span>{ipInfo.timezone} {ipInfo.utc_offset ? `(UTC ${ipInfo.utc_offset})` : ""}</span></>)}
+                {(ipInfo.latitude && ipInfo.longitude) && (
+                  <>
+                    <span className="text-muted-foreground">Coordenadas</span>
+                    <a
+                      href={`https://www.google.com/maps?q=${ipInfo.latitude},${ipInfo.longitude}`}
+                      target="_blank" rel="noreferrer"
+                      className="text-primary hover:underline font-mono"
+                    >
+                      {ipInfo.latitude}, {ipInfo.longitude} (abrir no mapa)
+                    </a>
+                  </>
+                )}
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground pt-2">
+              A localização vem da geolocalização do IP (ipapi.co). Não inclui rua/número exatos — provedores só permitem detectar até cidade/bairro/CEP, e pode variar conforme a operadora.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
