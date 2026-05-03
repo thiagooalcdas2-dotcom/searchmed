@@ -70,6 +70,10 @@ export const SessionsPanel = () => {
   const [resetTarget, setResetTarget] = useState<{ user_id: string; email: string } | null>(null);
   const [resetPw, setResetPw] = useState("");
   const [resetting, setResetting] = useState(false);
+  const [ipTarget, setIpTarget] = useState<string | null>(null);
+  const [ipInfo, setIpInfo] = useState<any | null>(null);
+  const [ipLoading, setIpLoading] = useState(false);
+  const [ipError, setIpError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [newEmail, setNewEmail] = useState("");
@@ -111,6 +115,37 @@ export const SessionsPanel = () => {
     try { await navigator.clipboard.writeText(text); toast.success(`${label} copiado`); }
     catch { toast.error("Falha ao copiar"); }
   };
+
+  const openIp = async (ip: string | null | undefined) => {
+    if (!ip || ip === "unknown") return toast.error("IP indisponível");
+    setIpTarget(ip);
+    setIpInfo(null);
+    setIpError(null);
+    setIpLoading(true);
+    try {
+      const res = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`);
+      const data = await res.json();
+      if (data.error) setIpError(data.reason || "Falha ao localizar IP");
+      else setIpInfo(data);
+    } catch (e: any) {
+      setIpError(e?.message || "Falha ao consultar localização");
+    } finally {
+      setIpLoading(false);
+    }
+  };
+
+  const IpButton = ({ ip }: { ip: string | null | undefined }) => (
+    ip ? (
+      <button
+        type="button"
+        onClick={() => openIp(ip)}
+        className="font-mono text-xs text-primary hover:underline"
+        title="Ver localização detalhada"
+      >
+        {ip}
+      </button>
+    ) : <span className="text-xs text-muted-foreground">—</span>
+  );
 
   const doReset = async () => {
     if (!resetTarget) return;
@@ -320,7 +355,7 @@ export const SessionsPanel = () => {
                         <div className="text-xs text-muted-foreground">{p.crm || p.id.slice(0, 8)}</div>
                       </TableCell>
                       <TableCell><CredCell uid={p.id} /></TableCell>
-                      <TableCell className="font-mono text-xs">{s?.ip_address || "—"}</TableCell>
+                      <TableCell><IpButton ip={s?.ip_address} /></TableCell>
                       <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={s?.user_agent || ""}>
                         {formatDevice(s?.user_agent, s?.device_id)}
                       </TableCell>
@@ -412,7 +447,7 @@ export const SessionsPanel = () => {
                 return (
                   <TableRow key={s.id}>
                     <TableCell className="font-medium">{p?.full_name || s.user_id.slice(0, 8)}</TableCell>
-                    <TableCell className="font-mono text-xs">{s.ip_address || "—"}</TableCell>
+                    <TableCell><IpButton ip={s.ip_address} /></TableCell>
                     <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={s.user_agent || ""}>{formatDevice(s.user_agent, s.device_id)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleString("pt-BR")}</TableCell>
                     <TableCell>
@@ -487,6 +522,53 @@ export const SessionsPanel = () => {
               {resetting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando…</> : "Salvar nova senha"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!ipTarget} onOpenChange={(o) => { if (!o) { setIpTarget(null); setIpInfo(null); setIpError(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Localização do IP</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-base">{ipTarget}</span>
+              {ipTarget && (
+                <button type="button" onClick={() => copy(ipTarget, "IP")} className="text-muted-foreground hover:text-foreground">
+                  <Copy className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            {ipLoading && <div className="text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Buscando localização…</div>}
+            {ipError && <div className="text-destructive">{ipError}</div>}
+            {ipInfo && (
+              <div className="grid grid-cols-[120px_1fr] gap-x-3 gap-y-1.5 mt-2">
+                {ipInfo.ip && (<><span className="text-muted-foreground">IP</span><span className="font-mono">{ipInfo.ip}</span></>)}
+                {ipInfo.org && (<><span className="text-muted-foreground">Provedor</span><span>{ipInfo.org}</span></>)}
+                {ipInfo.asn && (<><span className="text-muted-foreground">ASN</span><span className="font-mono">{ipInfo.asn}</span></>)}
+                {ipInfo.country_name && (<><span className="text-muted-foreground">País</span><span>{ipInfo.country_name} {ipInfo.country_code ? `(${ipInfo.country_code})` : ""}</span></>)}
+                {ipInfo.region && (<><span className="text-muted-foreground">Estado</span><span>{ipInfo.region} {ipInfo.region_code ? `(${ipInfo.region_code})` : ""}</span></>)}
+                {ipInfo.city && (<><span className="text-muted-foreground">Cidade</span><span>{ipInfo.city}</span></>)}
+                {ipInfo.postal && (<><span className="text-muted-foreground">CEP</span><span className="font-mono">{ipInfo.postal}</span></>)}
+                {ipInfo.timezone && (<><span className="text-muted-foreground">Fuso</span><span>{ipInfo.timezone} {ipInfo.utc_offset ? `(UTC ${ipInfo.utc_offset})` : ""}</span></>)}
+                {(ipInfo.latitude && ipInfo.longitude) && (
+                  <>
+                    <span className="text-muted-foreground">Coordenadas</span>
+                    <a
+                      href={`https://www.google.com/maps?q=${ipInfo.latitude},${ipInfo.longitude}`}
+                      target="_blank" rel="noreferrer"
+                      className="text-primary hover:underline font-mono"
+                    >
+                      {ipInfo.latitude}, {ipInfo.longitude} (abrir no mapa)
+                    </a>
+                  </>
+                )}
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground pt-2">
+              A localização vem da geolocalização do IP (ipapi.co). Não inclui rua/número exatos — provedores só permitem detectar até cidade/bairro/CEP, e pode variar conforme a operadora.
+            </p>
+          </div>
         </DialogContent>
       </Dialog>
     </Card>
