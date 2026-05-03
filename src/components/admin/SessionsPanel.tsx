@@ -70,6 +70,10 @@ export const SessionsPanel = () => {
   const [resetTarget, setResetTarget] = useState<{ user_id: string; email: string } | null>(null);
   const [resetPw, setResetPw] = useState("");
   const [resetting, setResetting] = useState(false);
+  const [ipTarget, setIpTarget] = useState<string | null>(null);
+  const [ipInfo, setIpInfo] = useState<any | null>(null);
+  const [ipLoading, setIpLoading] = useState(false);
+  const [ipError, setIpError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [newEmail, setNewEmail] = useState("");
@@ -111,6 +115,37 @@ export const SessionsPanel = () => {
     try { await navigator.clipboard.writeText(text); toast.success(`${label} copiado`); }
     catch { toast.error("Falha ao copiar"); }
   };
+
+  const openIp = async (ip: string | null | undefined) => {
+    if (!ip || ip === "unknown") return toast.error("IP indisponível");
+    setIpTarget(ip);
+    setIpInfo(null);
+    setIpError(null);
+    setIpLoading(true);
+    try {
+      const res = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`);
+      const data = await res.json();
+      if (data.error) setIpError(data.reason || "Falha ao localizar IP");
+      else setIpInfo(data);
+    } catch (e: any) {
+      setIpError(e?.message || "Falha ao consultar localização");
+    } finally {
+      setIpLoading(false);
+    }
+  };
+
+  const IpButton = ({ ip }: { ip: string | null | undefined }) => (
+    ip ? (
+      <button
+        type="button"
+        onClick={() => openIp(ip)}
+        className="font-mono text-xs text-primary hover:underline"
+        title="Ver localização detalhada"
+      >
+        {ip}
+      </button>
+    ) : <span className="text-xs text-muted-foreground">—</span>
+  );
 
   const doReset = async () => {
     if (!resetTarget) return;
@@ -320,7 +355,7 @@ export const SessionsPanel = () => {
                         <div className="text-xs text-muted-foreground">{p.crm || p.id.slice(0, 8)}</div>
                       </TableCell>
                       <TableCell><CredCell uid={p.id} /></TableCell>
-                      <TableCell className="font-mono text-xs">{s?.ip_address || "—"}</TableCell>
+                      <TableCell><IpButton ip={s?.ip_address} /></TableCell>
                       <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={s?.user_agent || ""}>
                         {formatDevice(s?.user_agent, s?.device_id)}
                       </TableCell>
@@ -412,7 +447,7 @@ export const SessionsPanel = () => {
                 return (
                   <TableRow key={s.id}>
                     <TableCell className="font-medium">{p?.full_name || s.user_id.slice(0, 8)}</TableCell>
-                    <TableCell className="font-mono text-xs">{s.ip_address || "—"}</TableCell>
+                    <TableCell><IpButton ip={s.ip_address} /></TableCell>
                     <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={s.user_agent || ""}>{formatDevice(s.user_agent, s.device_id)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleString("pt-BR")}</TableCell>
                     <TableCell>
