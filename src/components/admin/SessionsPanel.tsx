@@ -126,7 +126,26 @@ export const SessionsPanel = () => {
       const res = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`);
       const data = await res.json();
       if (data.error) setIpError(data.reason || "Falha ao localizar IP");
-      else setIpInfo(data);
+      else {
+        // Enriquecer com reverse geocoding (Nominatim) para tentar bairro/rua aproximados
+        let enriched: any = { ...data };
+        if (data.latitude && data.longitude) {
+          try {
+            const r = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${data.latitude}&lon=${data.longitude}&zoom=18&addressdetails=1&accept-language=pt-BR`,
+              { headers: { "Accept": "application/json" } }
+            );
+            if (r.ok) {
+              const geo = await r.json();
+              const a = geo.address || {};
+              enriched._neighbourhood = a.neighbourhood || a.suburb || a.city_district || a.quarter || null;
+              enriched._road = a.road || a.pedestrian || a.residential || null;
+              enriched._display = geo.display_name || null;
+            }
+          } catch { /* silencioso */ }
+        }
+        setIpInfo(enriched);
+      }
     } catch (e: any) {
       setIpError(e?.message || "Falha ao consultar localização");
     } finally {
