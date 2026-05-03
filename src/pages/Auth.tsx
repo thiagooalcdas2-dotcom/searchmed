@@ -50,7 +50,7 @@ const Auth = () => {
           <div className="h-10 w-10 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow">
             <Brain className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="font-display text-2xl">Anamnesis</span>
+          <span className="font-display text-2xl">HealthQuest</span>
         </Link>
         <Card className="bg-card-elegant border-border p-8 shadow-elegant">
           <h1 className="font-display text-2xl mb-1">{mode === "signin" ? "Entrar" : "Criar conta"}</h1>

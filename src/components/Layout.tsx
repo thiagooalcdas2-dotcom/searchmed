@@ -60,7 +60,7 @@ const Layout = () => {
         <Brain className="h-5 w-5 text-primary-foreground" />
       </div>
       <div>
-        <div className="font-display text-lg leading-none">Anamnesis</div>
+        <div className="font-display text-lg leading-none">HealthQuest</div>
         <div className="text-xs text-muted-foreground">Medical Question Lab</div>
       </div>
     </div>
