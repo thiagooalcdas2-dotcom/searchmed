@@ -14,7 +14,6 @@ const Landing = () => {
         </div>
         <div className="flex items-center gap-2">
           <Link to="/auth"><Button variant="ghost">Entrar</Button></Link>
-          <Link to="/auth"><Button className="bg-gradient-primary text-primary-foreground shadow-glow">Começar</Button></Link>
         </div>
       </header>
 
@@ -29,7 +28,6 @@ const Landing = () => {
           Banco de questões originais para ENAMED, residências do Sul de Minas (Itajubá, Alfenas, Pouso Alegre, Lavras) e São Paulo. Simulados sob medida, comentários comparativos e raciocínio clínico em primeiro lugar.
         </p>
         <div className="flex items-center justify-center gap-3 mt-10">
-          <Link to="/auth"><Button size="lg" className="bg-gradient-primary text-primary-foreground shadow-glow">Criar conta gratuita</Button></Link>
           <a href="#features"><Button size="lg" variant="outline">Conhecer recursos</Button></a>
         </div>
       </section>
