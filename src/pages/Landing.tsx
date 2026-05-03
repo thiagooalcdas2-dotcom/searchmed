@@ -10,7 +10,7 @@ const Landing = () => {
           <div className="h-9 w-9 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow">
             <Brain className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="font-display text-xl">Anamnesis</span>
+          <span className="font-display text-xl">HealthQuest</span>
         </div>
         <div className="flex items-center gap-2">
           <Link to="/auth"><Button variant="ghost">Entrar</Button></Link>
@@ -54,7 +54,7 @@ const Landing = () => {
       </section>
 
       <footer className="border-t border-border py-8 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Anamnesis · Plataforma de estudo. Todas as questões são originais — não reproduzimos provas reais protegidas.
+        © {new Date().getFullYear()} HealthQuest · Plataforma de estudo. Todas as questões são originais — não reproduzimos provas reais protegidas.
       </footer>
     </div>
   );
