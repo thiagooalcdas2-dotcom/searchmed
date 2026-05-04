@@ -56,6 +56,69 @@ export type Database = {
         }
         Relationships: []
       }
+      badges: {
+        Row: {
+          category: string
+          color: string
+          created_at: string
+          criteria: Json
+          description: string | null
+          icon: string
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          category?: string
+          color?: string
+          created_at?: string
+          criteria?: Json
+          description?: string | null
+          icon?: string
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          category?: string
+          color?: string
+          created_at?: string
+          criteria?: Json
+          description?: string | null
+          icon?: string
+          id?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      direct_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          read_at: string | null
+          recipient_id: string
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          recipient_id: string
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          recipient_id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
       discipline_years: {
         Row: {
           course_year: Database["public"]["Enums"]["course_year"]
@@ -103,30 +166,69 @@ export type Database = {
         }
         Relationships: []
       }
-      profiles: {
+      friendships: {
         Row: {
-          course_period: string | null
+          addressee_id: string
           created_at: string
-          crm: string | null
-          full_name: string | null
           id: string
+          requester_id: string
+          status: string
           updated_at: string
         }
         Insert: {
-          course_period?: string | null
+          addressee_id: string
           created_at?: string
-          crm?: string | null
-          full_name?: string | null
-          id: string
+          id?: string
+          requester_id: string
+          status?: string
           updated_at?: string
         }
         Update: {
+          addressee_id?: string
+          created_at?: string
+          id?: string
+          requester_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          course_period: string | null
+          created_at: string
+          crm: string | null
+          dm_privacy: string
+          full_name: string | null
+          id: string
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
           course_period?: string | null
           created_at?: string
           crm?: string | null
+          dm_privacy?: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          course_period?: string | null
+          created_at?: string
+          crm?: string | null
+          dm_privacy?: string
           full_name?: string | null
           id?: string
           updated_at?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -392,6 +494,38 @@ export type Database = {
         }
         Relationships: []
       }
+      user_badges: {
+        Row: {
+          awarded_at: string
+          awarded_by: string | null
+          badge_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          awarded_at?: string
+          awarded_by?: string | null
+          badge_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          awarded_at?: string
+          awarded_by?: string | null
+          badge_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -451,12 +585,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_public_profile: {
+        Args: { _user_id: string }
+        Returns: {
+          avatar_url: string
+          bio: string
+          dm_privacy: string
+          full_name: string
+          id: string
+          username: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      recompute_user_badges: { Args: { _user_id?: string }; Returns: undefined }
+      search_public_users: {
+        Args: { _limit?: number; _q?: string }
+        Returns: {
+          avatar_url: string
+          full_name: string
+          id: string
+          username: string
+        }[]
       }
     }
     Enums: {
