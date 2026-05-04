@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsAdmin } from "@/hooks/useRole";
 import { useSessionGuard } from "@/hooks/useSessionGuard";
 import { Button } from "@/components/ui/button";
-import { Stethoscope, BookOpen, Brain, BarChart3, Library, LogOut, Sparkles, Shield, Repeat, Menu } from "lucide-react";
+import { Stethoscope, BookOpen, Brain, BarChart3, Library, LogOut, Sparkles, Shield, Repeat, Menu, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const navItems = [
@@ -13,6 +13,7 @@ const navItems = [
   { to: "/app/simulado", label: "Simulados", icon: BookOpen },
   { to: "/app/enamed", label: "ENAMED & Residência", icon: Sparkles },
   { to: "/app/revisar", label: "Caderno de erros", icon: Repeat },
+  { to: "/app/hub", label: "Hub", icon: Users },
   { to: "/app/desempenho", label: "Meu Desempenho", icon: BarChart3 },
 ];
 
