@@ -37,6 +37,11 @@ export default {
           foreground: "hsl(var(--success-foreground))",
         },
         gold: "hsl(var(--gold))",
+        electric: {
+          DEFAULT: "hsl(var(--electric))",
+          foreground: "hsl(var(--electric-foreground))",
+          glow: "hsl(var(--electric-glow))",
+        },
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
