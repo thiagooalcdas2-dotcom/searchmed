@@ -132,36 +132,20 @@ const Desempenho = () => {
         .limit(20);
       setSims((simData || []) as SimRow[]);
 
-      // Ranking
-      const { data: allAtt } = await supabase
-        .from("question_attempts")
-        .select("user_id, is_correct, questions(difficulty)");
-      const { data: profs } = await supabase.from("profiles").select("id, full_name");
-      const nameOf = new Map<string, string>((profs || []).map((p: any) => [p.id, p.full_name || "Usuário"]));
-      const agg = new Map<string, { t: number; c: number; points: number }>();
-      (allAtt || []).forEach((a: any) => {
-        const e = agg.get(a.user_id) || { t: 0, c: 0, points: 0 };
-        e.t += 1;
-        if (a.is_correct) {
-          e.c += 1;
-          const diff = a.questions?.difficulty || "medium";
-          e.points += diff === "hard" ? 3 : diff === "easy" ? 1 : 2;
-        }
-        agg.set(a.user_id, e);
+      // Ranking — inclui todos os usuários inscritos (RPC respeita preferência de visibilidade)
+      const { data: rankData } = await supabase.rpc("get_ranking", { _limit: 200 });
+      const ranked = ((rankData as any[]) || []).map((r) => {
+        const total = Number(r.total) || 0;
+        const correct = Number(r.correct) || 0;
+        return {
+          user_id: r.user_id,
+          name: r.user_id === user.id ? "Você" : (r.full_name || "Usuário"),
+          total,
+          correct,
+          pct: total > 0 ? Math.round((correct / total) * 100) : 0,
+          points: Number(r.points) || 0,
+        };
       });
-      const ranked = [...agg.entries()]
-        .filter(([, v]) => v.t >= 1)
-        .map(([uid, v]) => ({
-          user_id: uid,
-          name: nameOf.get(uid) || (uid === user.id ? "Você" : "Usuário"),
-          total: v.t,
-          correct: v.c,
-          pct: Math.round((v.c / v.t) * 100),
-          points: v.points,
-        }))
-        // Ordena por pontos (volume × dificuldade × acerto) — combate a "100% com 1 questão"
-        .sort((a, b) => b.points - a.points || b.pct - a.pct || b.total - a.total)
-        .slice(0, 100);
       const rows: RankRow[] = ranked.map((r, i) => ({ ...r, tier: tierFor(i + 1).label }));
       setRanking(rows);
     })();
