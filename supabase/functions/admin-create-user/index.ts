@@ -35,19 +35,19 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     console.log("admin-create-user body received:", JSON.stringify(body));
-    const email: string = String(body.email || "").trim().toLowerCase();
+    const rawEmail: string = String(body.email || "").trim();
     const password: string = String(body.password || "");
     const fullName: string | null = body.full_name ? String(body.full_name).trim() : null;
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return json({ error: `E-mail inválido (recebido: "${email}")` }, 400);
-    }
-    if (!password || password.length < 6) {
-      return json({ error: "Senha deve ter pelo menos 6 caracteres" }, 400);
-    }
-    if (email.length > 255 || password.length > 128) {
+    if (!rawEmail) return json({ error: "Login obrigatório" }, 400);
+    if (!password) return json({ error: "Senha obrigatória" }, 400);
+    if (rawEmail.length > 255 || password.length > 128) {
       return json({ error: "Campos muito longos" }, 400);
     }
+    // Aceita qualquer login: se não tiver "@", converte em pseudo e-mail interno
+    const email = rawEmail.includes("@")
+      ? rawEmail.toLowerCase()
+      : `${rawEmail.toLowerCase().replace(/[^a-z0-9._-]/g, "")}@users.local`;
 
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
