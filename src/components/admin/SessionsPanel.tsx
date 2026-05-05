@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Ban, ShieldCheck, LogOut, RefreshCw, UserPlus, Loader2, ShieldAlert, Eye, EyeOff, KeyRound, Copy } from "lucide-react";
+import { Ban, ShieldCheck, LogOut, RefreshCw, UserPlus, Loader2, ShieldAlert, Eye, EyeOff, KeyRound, Copy, Pencil } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -67,9 +67,11 @@ export const SessionsPanel = () => {
   const [creds, setCreds] = useState<CredRow[]>([]);
   const [emailsMap, setEmailsMap] = useState<Record<string, string>>({});
   const [showPw, setShowPw] = useState<Record<string, boolean>>({});
-  const [resetTarget, setResetTarget] = useState<{ user_id: string; email: string } | null>(null);
-  const [resetPw, setResetPw] = useState("");
-  const [resetting, setResetting] = useState(false);
+  const [editTarget, setEditTarget] = useState<{ user_id: string; email: string; full_name: string | null } | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editLogin, setEditLogin] = useState("");
+  const [editPw, setEditPw] = useState("");
+  const [saving, setSaving] = useState(false);
   const [ipTarget, setIpTarget] = useState<string | null>(null);
   const [ipInfo, setIpInfo] = useState<any | null>(null);
   const [ipLoading, setIpLoading] = useState(false);
@@ -166,25 +168,37 @@ export const SessionsPanel = () => {
     ) : <span className="text-xs text-muted-foreground">—</span>
   );
 
-  const doReset = async () => {
-    if (!resetTarget) return;
-    if (resetPw.length < 6) return toast.error("Senha precisa de pelo menos 6 caracteres");
-    setResetting(true);
-    const { data, error } = await supabase.functions.invoke("admin-reset-password", {
-      body: { user_id: resetTarget.user_id, new_password: resetPw },
-    });
-    setResetting(false);
-    if (error || (data as any)?.error) {
-      return toast.error((data as any)?.error || error?.message || "Falha ao redefinir");
+  const openEdit = (uid: string) => {
+    const p = profileOf(uid);
+    const email = emailOf(uid);
+    setEditTarget({ user_id: uid, email, full_name: p?.full_name || null });
+    setEditName(p?.full_name || "");
+    setEditLogin(email);
+    setEditPw("");
+  };
+
+  const doSaveEdit = async () => {
+    if (!editTarget) return;
+    const payload: Record<string, unknown> = { user_id: editTarget.user_id };
+    if (editName.trim() !== (editTarget.full_name || "")) payload.new_full_name = editName.trim() || null;
+    if (editLogin.trim() && editLogin.trim() !== editTarget.email) payload.new_email = editLogin.trim();
+    if (editPw) payload.new_password = editPw;
+    if (Object.keys(payload).length === 1) {
+      return toast.error("Altere ao menos um campo");
     }
-    toast.success("Senha redefinida");
-    setResetTarget(null); setResetPw("");
+    setSaving(true);
+    const { data, error } = await supabase.functions.invoke("admin-reset-password", { body: payload });
+    setSaving(false);
+    if (error || (data as any)?.error) {
+      return toast.error((data as any)?.error || error?.message || "Falha ao salvar");
+    }
+    toast.success("Conta atualizada");
+    setEditTarget(null); setEditName(""); setEditLogin(""); setEditPw("");
     load();
   };
 
   const createUser = async () => {
-    if (!newEmail || !newPassword) return toast.error("Preencha e-mail e senha");
-    if (newPassword.length < 6) return toast.error("Senha precisa ter pelo menos 6 caracteres");
+    if (!newEmail || !newPassword) return toast.error("Preencha login e senha");
     setCreating(true);
     const { data, error } = await supabase.functions.invoke("admin-create-user", {
       body: { email: newEmail.trim().toLowerCase(), password: newPassword, full_name: newName.trim() || null },
@@ -313,11 +327,11 @@ export const SessionsPanel = () => {
             )}
             <button
               type="button"
-              onClick={() => { setResetTarget({ user_id: uid, email }); setResetPw(""); }}
+              onClick={() => openEdit(uid)}
               className="text-muted-foreground hover:text-primary ml-auto"
-              title="Redefinir senha"
+              title="Editar conta (nome, login, senha)"
             >
-              <KeyRound className="h-3 w-3" />
+              <Pencil className="h-3 w-3" />
             </button>
           </div>
         )}
@@ -521,24 +535,32 @@ export const SessionsPanel = () => {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={!!resetTarget} onOpenChange={(o) => { if (!o) { setResetTarget(null); setResetPw(""); } }}>
+      <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) { setEditTarget(null); setEditName(""); setEditLogin(""); setEditPw(""); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Redefinir senha</DialogTitle>
+            <DialogTitle>Editar conta</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="text-sm text-muted-foreground">
-              Conta: <span className="font-mono">{resetTarget?.email || resetTarget?.user_id.slice(0, 8)}</span>
+            <div className="text-xs text-muted-foreground">
+              ID: <span className="font-mono">{editTarget?.user_id.slice(0, 8)}</span>
             </div>
             <div>
-              <Label>Nova senha</Label>
-              <Input type="text" value={resetPw} onChange={(e) => setResetPw(e.target.value)} placeholder="mínimo 6 caracteres" maxLength={128} autoFocus />
+              <Label>Nome completo</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={120} />
+            </div>
+            <div>
+              <Label>Login (e-mail ou usuário)</Label>
+              <Input value={editLogin} onChange={(e) => setEditLogin(e.target.value)} maxLength={255} />
+            </div>
+            <div>
+              <Label>Nova senha (deixe em branco p/ manter)</Label>
+              <Input type="text" value={editPw} onChange={(e) => setEditPw(e.target.value)} maxLength={128} placeholder="••••••" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setResetTarget(null); setResetPw(""); }}>Cancelar</Button>
-            <Button onClick={doReset} disabled={resetting} className="bg-gradient-primary text-primary-foreground">
-              {resetting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando…</> : "Salvar nova senha"}
+            <Button variant="outline" onClick={() => { setEditTarget(null); }}>Cancelar</Button>
+            <Button onClick={doSaveEdit} disabled={saving} className="bg-gradient-primary text-primary-foreground">
+              {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando…</> : "Salvar alterações"}
             </Button>
           </DialogFooter>
         </DialogContent>
