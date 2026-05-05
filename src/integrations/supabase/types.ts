@@ -203,6 +203,8 @@ export type Database = {
           dm_privacy: string
           full_name: string | null
           id: string
+          show_in_hub: boolean
+          show_in_ranking: boolean
           updated_at: string
           username: string | null
         }
@@ -215,6 +217,8 @@ export type Database = {
           dm_privacy?: string
           full_name?: string | null
           id: string
+          show_in_hub?: boolean
+          show_in_ranking?: boolean
           updated_at?: string
           username?: string | null
         }
@@ -227,6 +231,8 @@ export type Database = {
           dm_privacy?: string
           full_name?: string | null
           id?: string
+          show_in_hub?: boolean
+          show_in_ranking?: boolean
           updated_at?: string
           username?: string | null
         }
@@ -594,6 +600,16 @@ export type Database = {
           full_name: string
           id: string
           username: string
+        }[]
+      }
+      get_ranking: {
+        Args: { _limit?: number }
+        Returns: {
+          correct: number
+          full_name: string
+          points: number
+          total: number
+          user_id: string
         }[]
       }
       has_role: {

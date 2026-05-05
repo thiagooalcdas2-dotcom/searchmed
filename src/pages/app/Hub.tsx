@@ -28,6 +28,8 @@ const Hub = () => {
   const [openProfile, setOpenProfile] = useState<string | null>(null);
   const [chatPeer, setChatPeer] = useState<string | null>(null);
   const [dmPrivacy, setDmPrivacy] = useState<"all" | "friends">("all");
+  const [showRanking, setShowRanking] = useState(true);
+  const [showHub, setShowHub] = useState(true);
 
   const reloadFriends = async () => {
     if (!user) return;
@@ -75,8 +77,10 @@ const Hub = () => {
     if (!user) return;
     reloadFriends();
     reloadConvs();
-    supabase.from("profiles").select("dm_privacy").eq("id", user.id).maybeSingle().then(({ data }) => {
+    supabase.from("profiles").select("dm_privacy, show_in_ranking, show_in_hub").eq("id", user.id).maybeSingle().then(({ data }) => {
       if (data?.dm_privacy === "friends" || data?.dm_privacy === "all") setDmPrivacy(data.dm_privacy as any);
+      if (typeof data?.show_in_ranking === "boolean") setShowRanking(data.show_in_ranking);
+      if (typeof data?.show_in_hub === "boolean") setShowHub(data.show_in_hub);
     });
     supabase.rpc("recompute_user_badges", { _user_id: user.id });
 
@@ -100,6 +104,20 @@ const Hub = () => {
     setDmPrivacy(val);
     if (!user) return;
     await supabase.from("profiles").update({ dm_privacy: val }).eq("id", user.id);
+    toast.success("Preferência salva");
+  };
+
+  const updateShowRanking = async (val: boolean) => {
+    setShowRanking(val);
+    if (!user) return;
+    await supabase.from("profiles").update({ show_in_ranking: val }).eq("id", user.id);
+    toast.success("Preferência salva");
+  };
+
+  const updateShowHub = async (val: boolean) => {
+    setShowHub(val);
+    if (!user) return;
+    await supabase.from("profiles").update({ show_in_hub: val }).eq("id", user.id);
     toast.success("Preferência salva");
   };
 
@@ -225,6 +243,20 @@ const Hub = () => {
                   <p className="text-xs text-muted-foreground">Bloqueia mensagens de quem não está na sua lista.</p>
                 </div>
                 <Switch checked={dmPrivacy === "friends"} onCheckedChange={(v) => updatePrivacy(v ? "friends" : "all")} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm">Aparecer no ranking</Label>
+                  <p className="text-xs text-muted-foreground">Seu nome aparece na classificação geral de desempenho.</p>
+                </div>
+                <Switch checked={showRanking} onCheckedChange={updateShowRanking} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm">Aparecer no hub</Label>
+                  <p className="text-xs text-muted-foreground">Outros usuários poderão te encontrar na busca.</p>
+                </div>
+                <Switch checked={showHub} onCheckedChange={updateShowHub} />
               </div>
             </TabsContent>
           </Tabs>
