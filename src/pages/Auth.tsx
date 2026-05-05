@@ -20,9 +20,13 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     try {
+      const loginInput = email.trim();
+      const authEmail = loginInput.includes("@")
+        ? loginInput.toLowerCase()
+        : `${loginInput.toLowerCase().replace(/[^a-z0-9._-]/g, "")}@users.local`;
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
-          email, password,
+          email: authEmail, password,
           options: {
             emailRedirectTo: `${window.location.origin}/app`,
             data: { full_name: fullName },
@@ -32,7 +36,7 @@ const Auth = () => {
         toast.success("Conta criada! Você já pode entrar.");
         setMode("signin");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password });
         if (error) throw error;
         navigate("/app");
       }
@@ -63,12 +67,12 @@ const Auth = () => {
               </div>
             )}
             <div>
-              <Label htmlFor="email">E-mail</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Label htmlFor="email">Login (e-mail ou usuário)</Label>
+              <Input id="email" type="text" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="username" />
             </div>
             <div>
               <Label htmlFor="password">Senha</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={1} />
             </div>
             <Button type="submit" disabled={loading} className="w-full bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-glow">
               {loading ? "Aguarde…" : mode === "signin" ? "Entrar" : "Criar conta"}
