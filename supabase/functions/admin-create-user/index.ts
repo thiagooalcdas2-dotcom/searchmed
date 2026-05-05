@@ -34,12 +34,13 @@ Deno.serve(async (req) => {
     if (!roleRow) return json({ error: "forbidden" }, 403);
 
     const body = await req.json().catch(() => ({}));
+    console.log("admin-create-user body received:", JSON.stringify(body));
     const email: string = String(body.email || "").trim().toLowerCase();
     const password: string = String(body.password || "");
     const fullName: string | null = body.full_name ? String(body.full_name).trim() : null;
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return json({ error: "E-mail inválido" }, 400);
+      return json({ error: `E-mail inválido (recebido: "${email}")` }, 400);
     }
     if (!password || password.length < 6) {
       return json({ error: "Senha deve ter pelo menos 6 caracteres" }, 400);
