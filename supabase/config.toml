@@ -2,3 +2,6 @@ project_id = "ozjzuznnwtldnmthdwkc"
 
 [functions.ai-generate-questions]
 verify_jwt = true
+
+[functions.medquest-chat]
+verify_jwt = false
