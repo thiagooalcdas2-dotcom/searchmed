@@ -6,6 +6,7 @@ import { useSessionGuard } from "@/hooks/useSessionGuard";
 import { Button } from "@/components/ui/button";
 import { Stethoscope, BookOpen, Brain, BarChart3, Library, LogOut, Sparkles, Shield, Repeat, Menu, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import MedQuestAssistant from "@/components/ai/MedQuestAssistant";
 
 const navItems = [
   { to: "/app", label: "Início", icon: Stethoscope, end: true },
@@ -108,6 +109,7 @@ const Layout = () => {
         <div className="md:hidden h-14" />
         <Outlet />
       </main>
+      <MedQuestAssistant />
     </div>
   );
 };
