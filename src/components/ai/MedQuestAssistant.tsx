@@ -179,27 +179,42 @@ export const MedQuestAssistant = () => {
     <>
       {/* Floating button */}
       {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          aria-label="Abrir assistente MedQuest"
-          className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full bg-electric/10 border border-electric/40 shadow-glow hover:scale-105 transition-transform overflow-hidden flex items-center justify-center backdrop-blur"
-        >
-          <img src={logo} alt="MedQuest AI" className="h-12 w-12 object-contain" />
-          <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-electric animate-pulse" />
-        </button>
+        <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
+          <button
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Ajustar logo"
+            className="h-7 w-7 rounded-full bg-card border border-border shadow-soft flex items-center justify-center text-muted-foreground hover:text-foreground transition"
+            title="Ajustar logo da IA"
+          >
+            <Settings className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => setOpen(true)}
+            aria-label="Abrir assistente MedQuest"
+            className="relative h-14 w-14 rounded-full bg-electric/10 border border-electric/40 shadow-glow hover:scale-105 transition-transform overflow-hidden flex items-center justify-center backdrop-blur"
+          >
+            <img src={logoSrc} alt="MedQuest AI" className="h-12 w-12 object-contain" style={logoStyle} />
+            <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-electric animate-pulse" />
+          </button>
+        </div>
       )}
 
       {/* Panel */}
       {open && (
         <div className="fixed bottom-6 right-6 z-40 w-[min(380px,calc(100vw-2rem))] h-[min(560px,calc(100vh-3rem))] flex flex-col rounded-2xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
           <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border bg-secondary/40">
-            <img src={logo} alt="" className="h-8 w-8 rounded-lg object-contain" />
+            <div className="h-8 w-8 rounded-lg overflow-hidden flex items-center justify-center">
+              <img src={logoSrc} alt="" className="h-8 w-8 object-contain" style={logoStyle} />
+            </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold leading-tight">MedQuest AI</div>
               <div className="text-[11px] text-muted-foreground">Sempre online</div>
             </div>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={clearChat} title="Limpar conversa">
               <Trash2 className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSettingsOpen(true)} title="Ajustar logo">
+              <Settings className="h-4 w-4" />
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setOpen(false)} title="Minimizar">
               <ChevronDown className="h-4 w-4" />
@@ -250,6 +265,51 @@ export const MedQuestAssistant = () => {
           </form>
         </div>
       )}
+
+      {/* Settings dialog */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Logo da IA</DialogTitle>
+            <DialogDescription>Faça upload de uma imagem e ajuste posição e escala do botão flutuante.</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-4">
+            <div className="h-20 w-20 rounded-full bg-electric/10 border border-electric/40 overflow-hidden flex items-center justify-center shrink-0">
+              <img src={logoSrc} alt="preview" className="h-16 w-16 object-contain" style={logoStyle} />
+            </div>
+            <div className="flex-1 space-y-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); e.currentTarget.value = ""; }}
+              />
+              <Button variant="outline" size="sm" className="w-full" onClick={() => fileRef.current?.click()}>
+                <Upload className="h-4 w-4 mr-2" /> Enviar imagem
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full" onClick={resetLogo}>
+                <RotateCcw className="h-4 w-4 mr-2" /> Restaurar padrão
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-2">
+            <div>
+              <div className="flex justify-between text-xs mb-1.5"><span>Escala</span><span className="text-muted-foreground">{logoCfg.scale}%</span></div>
+              <Slider value={[logoCfg.scale]} min={30} max={200} step={1} onValueChange={(v) => setLogoCfg((c) => ({ ...c, scale: v[0] }))} />
+            </div>
+            <div>
+              <div className="flex justify-between text-xs mb-1.5"><span>Posição horizontal</span><span className="text-muted-foreground">{logoCfg.x}%</span></div>
+              <Slider value={[logoCfg.x]} min={-50} max={50} step={1} onValueChange={(v) => setLogoCfg((c) => ({ ...c, x: v[0] }))} />
+            </div>
+            <div>
+              <div className="flex justify-between text-xs mb-1.5"><span>Posição vertical</span><span className="text-muted-foreground">{logoCfg.y}%</span></div>
+              <Slider value={[logoCfg.y]} min={-50} max={50} step={1} onValueChange={(v) => setLogoCfg((c) => ({ ...c, y: v[0] }))} />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
