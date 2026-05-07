@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { ChevronDown, X, Send, Loader2, Trash2 } from "lucide-react";
+import { ChevronDown, X, Send, Loader2, Trash2, Settings, Upload, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import logo from "@/assets/medquest-logo.png";
 
@@ -10,6 +12,8 @@ type Msg = { role: "user" | "assistant"; content: string };
 
 const STORAGE_KEY = "medquest-assistant-msgs";
 const OPEN_KEY = "medquest-assistant-open";
+const LOGO_KEY = "medquest-assistant-logo";
+const LOGO_CFG_KEY = "medquest-assistant-logo-cfg";
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/medquest-chat`;
 
 const WELCOME: Msg = {
@@ -17,11 +21,18 @@ const WELCOME: Msg = {
   content: "Olá! 👋 Sou o assistente do **MedQuest**. Posso explicar como usar a plataforma (Banco, Simulados, Hub, Ranking…) ou responder qualquer outra dúvida que você tiver. O que posso ajudar?",
 };
 
+type LogoCfg = { scale: number; x: number; y: number };
+const DEFAULT_CFG: LogoCfg = { scale: 100, x: 0, y: 0 };
+
 export const MedQuestAssistant = () => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([WELCOME]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [customLogo, setCustomLogo] = useState<string | null>(null);
+  const [logoCfg, setLogoCfg] = useState<LogoCfg>(DEFAULT_CFG);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -33,8 +44,40 @@ export const MedQuestAssistant = () => {
         if (Array.isArray(parsed) && parsed.length > 0) setMessages(parsed);
       }
       setOpen(localStorage.getItem(OPEN_KEY) === "1");
+      const savedLogo = localStorage.getItem(LOGO_KEY);
+      if (savedLogo) setCustomLogo(savedLogo);
+      const savedCfg = localStorage.getItem(LOGO_CFG_KEY);
+      if (savedCfg) setLogoCfg({ ...DEFAULT_CFG, ...JSON.parse(savedCfg) });
     } catch {}
   }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem(LOGO_CFG_KEY, JSON.stringify(logoCfg)); } catch {}
+  }, [logoCfg]);
+
+  const onUpload = (file: File) => {
+    if (!file.type.startsWith("image/")) { toast.error("Selecione uma imagem."); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error("Imagem muito grande (máx 2MB)."); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "");
+      setCustomLogo(dataUrl);
+      try { localStorage.setItem(LOGO_KEY, dataUrl); } catch { toast.error("Não foi possível salvar a imagem."); }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const resetLogo = () => {
+    setCustomLogo(null);
+    setLogoCfg(DEFAULT_CFG);
+    try { localStorage.removeItem(LOGO_KEY); } catch {}
+  };
+
+  const logoSrc = customLogo || logo;
+  const logoStyle: React.CSSProperties = {
+    transform: `translate(${logoCfg.x}%, ${logoCfg.y}%) scale(${logoCfg.scale / 100})`,
+    transformOrigin: "center",
+  };
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-30))); } catch {}
