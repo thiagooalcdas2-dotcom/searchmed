@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Background -->
+  <rect width="256" height="256" rx="64" fill="#26D0CE"/>
+  
+  <!-- Brain -->
+  <g transform="translate(128, 128)">
+    <!-- Brain outline -->
+    <path d="M -35 -15 Q -40 -25 -30 -35 Q -20 -40 -15 -30 Q -10 -40 0 -40 Q 10 -40 15 -30 Q 20 -40 30 -35 Q 40 -25 35 -15 L 35 15 Q 40 25 30 35 Q 20 40 15 30 Q 10 40 0 40 Q -10 40 -15 30 Q -20 40 -30 35 Q -40 25 -35 15 Z" 
+          fill="none" stroke="#001F3F" stroke-width="4" stroke-linejoin="round"/>
+    
+    <!-- Brain left hemisphere -->
+    <ellipse cx="-15" cy="0" rx="14" ry="22" fill="none" stroke="#001F3F" stroke-width="3.5" stroke-linejoin="round"/>
+    
+    <!-- Brain right hemisphere -->
+    <ellipse cx="15" cy="0" rx="14" ry="22" fill="none" stroke="#001F3F" stroke-width="3.5" stroke-linejoin="round"/>
+    
+    <!-- Medical symbol (caduceus) in center -->
+    <!-- Rod -->
+    <line x1="0" y1="-18" x2="0" y2="18" stroke="#001F3F" stroke-width="3" stroke-linecap="round"/>
+    
+    <!-- Left snake curve -->
+    <path d="M 0 -12 Q -6 -8 -8 0 Q -6 8 0 12" fill="none" stroke="#001F3F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Right snake curve -->
+    <path d="M 0 -12 Q 6 -8 8 0 Q 6 8 0 12" fill="none" stroke="#001F3F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Top circle (wings equivalent) -->
+    <circle cx="0" cy="-20" r="4" fill="#001F3F"/>
+  </g>
+</svg>
