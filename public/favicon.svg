@@ -1,30 +1,33 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <!-- Background -->
-  <rect width="256" height="256" rx="64" fill="#26D0CE"/>
+  <rect width="1024" height="1024" fill="#00D4D4" rx="256"/>
   
-  <!-- Brain -->
-  <g transform="translate(128, 128)">
-    <!-- Brain outline -->
-    <path d="M -35 -15 Q -40 -25 -30 -35 Q -20 -40 -15 -30 Q -10 -40 0 -40 Q 10 -40 15 -30 Q 20 -40 30 -35 Q 40 -25 35 -15 L 35 15 Q 40 25 30 35 Q 20 40 15 30 Q 10 40 0 40 Q -10 40 -15 30 Q -20 40 -30 35 Q -40 25 -35 15 Z" 
-          fill="none" stroke="#001F3F" stroke-width="4" stroke-linejoin="round"/>
+  <!-- Speech bubble tail -->
+  <polygon points="580,850 720,950 650,850" fill="#00D4D4"/>
+  
+  <!-- Brain outline -->
+  <g transform="translate(512, 400)">
+    <!-- Left hemisphere -->
+    <path d="M -280 -120 Q -320 -80 -320 40 Q -320 140 -220 200 Q -140 240 -80 240 Q -40 240 0 220 L 0 -200 Q -80 -180 -140 -160 Q -200 -140 -280 -120 Z" fill="#001A1A" stroke="none"/>
     
-    <!-- Brain left hemisphere -->
-    <ellipse cx="-15" cy="0" rx="14" ry="22" fill="none" stroke="#001F3F" stroke-width="3.5" stroke-linejoin="round"/>
+    <!-- Right hemisphere -->
+    <path d="M 280 -120 Q 320 -80 320 40 Q 320 140 220 200 Q 140 240 80 240 Q 40 240 0 220 L 0 -200 Q 80 -180 140 -160 Q 200 -140 280 -120 Z" fill="#001A1A" stroke="none"/>
     
-    <!-- Brain right hemisphere -->
-    <ellipse cx="15" cy="0" rx="14" ry="22" fill="none" stroke="#001F3F" stroke-width="3.5" stroke-linejoin="round"/>
+    <!-- Center dividing line with caduceus (medical staff) -->
+    <!-- Caduceus shaft -->
+    <rect x="-8" y="-100" width="16" height="280" fill="#001A1A"/>
     
-    <!-- Medical symbol (caduceus) in center -->
-    <!-- Rod -->
-    <line x1="0" y1="-18" x2="0" y2="18" stroke="#001F3F" stroke-width="3" stroke-linecap="round"/>
+    <!-- Top circle of caduceus -->
+    <circle cx="0" cy="-120" r="28" fill="none" stroke="#001A1A" stroke-width="24"/>
     
-    <!-- Left snake curve -->
-    <path d="M 0 -12 Q -6 -8 -8 0 Q -6 8 0 12" fill="none" stroke="#001F3F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Snakes/coils around shaft -->
+    <!-- Left coil -->
+    <path d="M -40 -60 Q -80 -40 -80 20 Q -80 60 -40 80" fill="none" stroke="#001A1A" stroke-width="20" stroke-linecap="round"/>
+    <!-- Right coil -->
+    <path d="M 40 -60 Q 80 -40 80 20 Q 80 60 40 80" fill="none" stroke="#001A1A" stroke-width="20" stroke-linecap="round"/>
     
-    <!-- Right snake curve -->
-    <path d="M 0 -12 Q 6 -8 8 0 Q 6 8 0 12" fill="none" stroke="#001F3F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-    
-    <!-- Top circle (wings equivalent) -->
-    <circle cx="0" cy="-20" r="4" fill="#001F3F"/>
+    <!-- Bottom coil intersection points -->
+    <circle cx="-60" cy="0" r="16" fill="#00D4D4"/>
+    <circle cx="60" cy="0" r="16" fill="#00D4D4"/>
   </g>
 </svg>
